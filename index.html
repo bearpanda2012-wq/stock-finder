@@ -234,6 +234,11 @@ tbody tr:hover .patg{border-color:#d0cec8}
 
   <div class="chips" id="chips"></div>
 
+  <details class="panel" id="spanel">
+    <summary>กลุ่มหุ้น</summary>
+    <div class="fbar" style="border-top:0"><div class="tsel" id="ssel"></div></div>
+  </details>
+
   <details class="panel" id="fpanel">
     <summary>ตัวกรองละเอียด</summary>
 
@@ -296,7 +301,7 @@ const $ = s => document.querySelector(s);
 
 /* ================= state ================= */
 const S = {
-  market:"thailand", rows:[], sortKey:"_score", sortDir:"desc", preset:null,
+  market:"thailand", rows:[], sortKey:"_score", sortDir:"desc", preset:null, sector:null,
   weights: load("w", {value:20, quality:25, growth:20, momentum:20, tech:15})
 };
 function load(k,d){ try{ const v=localStorage.getItem("sf_"+k); return v?JSON.parse(v):d }catch(e){ return d } }
@@ -801,8 +806,8 @@ async function run(filters, note){
   st.innerHTML='<span class="dot"></span> กำลังดึงข้อมูลสดจาก TradingView…';
   $("#go").disabled=$("#go2").disabled=true;
   const limit = +$("#lim").value;
-  const tech = readTech();
-  filters = [...(filters||[]), ...tech];
+  const tech = readTech(), sec = sectorFilter();
+  filters = [...(filters||[]), ...tech, ...sec];
   try{
     let out;
     if(isCrypto()){
@@ -821,7 +826,8 @@ async function run(filters, note){
     S.rows = S.rows.slice(0, limit);
     S.sortKey="_score"; S.sortDir="desc";
     st.innerHTML = `พบ <b>${(out.total||0).toLocaleString("th-TH")}</b> รายการที่เข้าเกณฑ์ · แสดง <b>${S.rows.length}</b> อันดับแรกเรียงตามคะแนน`
-      + (tech.length ? ` · <span style="color:var(--acc)">ใช้ตัวกรองเทคนิค ${tech.length} เงื่อนไข</span>` : "");
+      + (sec.length ? ` · <span style="color:var(--acc)">กลุ่ม ${escapeHtml(THSEC[S.sector]||S.sector)}</span>` : "")
+      + (tech.length ? ` · <span style="color:var(--acc)">ตัวกรองเทคนิค ${tech.length} เงื่อนไข</span>` : "");
     if(note) $("#ai").innerHTML = `<div class="ainote"><span class="tag">คำค้น</span>${escapeHtml(note)}</div>`;
     render();
     if(S.rows.length) $("#ai").innerHTML += overview();
@@ -888,6 +894,53 @@ function applyFilterUI(fs){
   });
   if(shown) $("#fpanel").open = true;
 }
+/* ---------- กลุ่มหุ้น (sector) ---------- */
+const SECTORS = [
+  ["Finance","การเงิน / ธนาคาร"],
+  ["Energy Minerals","พลังงาน"],
+  ["Utilities","สาธารณูปโภค"],
+  ["Technology Services","บริการเทคโนโลยี"],
+  ["Electronic Technology","อิเล็กทรอนิกส์"],
+  ["Health Technology","เทคโนโลยีการแพทย์"],
+  ["Health Services","บริการสุขภาพ"],
+  ["Retail Trade","ค้าปลีก"],
+  ["Consumer Services","บริการผู้บริโภค"],
+  ["Consumer Non-Durables","สินค้าอุปโภคบริโภค"],
+  ["Consumer Durables","สินค้าคงทน"],
+  ["Producer Manufacturing","การผลิต"],
+  ["Process Industries","อุตสาหกรรมแปรรูป"],
+  ["Non-Energy Minerals","วัตถุดิบ / เหมืองแร่"],
+  ["Industrial Services","บริการอุตสาหกรรม"],
+  ["Commercial Services","บริการเชิงพาณิชย์"],
+  ["Distribution Services","จัดจำหน่าย"],
+  ["Transportation","ขนส่ง / โลจิสติกส์"],
+  ["Communications","สื่อสาร / โทรคมนาคม"],
+  ["Miscellaneous","อื่นๆ / กองทุน"]
+];
+const THSEC = Object.fromEntries(SECTORS);
+function buildSectors(){
+  const box=$("#ssel"); if(!box) return;
+  const panel=$("#spanel");
+  if(isCrypto()){
+    panel.style.display="none"; S.sector=null; return;
+  }
+  panel.style.display="";
+  box.innerHTML="";
+  const all=document.createElement("button");
+  all.className="chip"+(S.sector?"":" on"); all.textContent="ทุกกลุ่ม";
+  all.onclick=()=>{ S.sector=null; buildSectors(); run(readManual()) };
+  box.appendChild(all);
+  SECTORS.forEach(([en,th])=>{
+    const b=document.createElement("button");
+    b.className="chip"+(S.sector===en?" on":""); b.textContent=th;
+    b.title=en;
+    b.onclick=()=>{ S.sector = (S.sector===en ? null : en); buildSectors(); run(readManual()) };
+    box.appendChild(b);
+  });
+}
+const sectorFilter = () => (!isCrypto() && S.sector)
+  ? [{field:"sector", operator:"equal", value:S.sector}] : [];
+
 /* ---------- ตัวกรองเทคนิค ---------- */
 const TECH_RANGE = [
   {k:"RSI", l:"RSI (14)"},
@@ -1209,20 +1262,40 @@ function nameCandidates(r){
     .replace(/[.,]+\s*$/,"").replace(/\s{2,}/g," ").trim();
   return [...new Set([light, bare, tkr].filter(x=>x && x.length>1))];
 }
+// คำที่บอกว่า "ไม่ใช่บริษัท" — กันไปเจอบทความหนัง เพลง คน สถานที่ ฯลฯ
+const NOT_COMPANY = /(ภาพยนตร์|ซีรีส์|ละคร|เพลง|อัลบั้ม|ซิงเกิล|วิดีโอเกม|เกม|การ์ตูน|อนิเมะ|นวนิยาย|หนังสือ|ตัวละคร|นักแสดง|นักร้อง|นักการเมือง|นักฟุตบอล|นักกีฬา|สปีชีส์|สกุล|พืช|สัตว์|จังหวัด|อำเภอ|ตำบล|หมู่บ้าน|แม่น้ำ|ภูเขา|เกาะ|ดาวเคราะห์|ธาตุ|โรค|กีฬา|วงดนตรี|ชื่อบุคคล|นามสกุล|film|movie|(television|TV) series|album|song|single|video ?game|anime|manga|novel|book|fictional|character|species|genus|footballer|athlete|actor|actress|singer|musician|band|politician|village|town|municipality|river|mountain|island|planet|chemical element|disease|given name|surname|disambiguation)/i;
+// คำที่ยืนยันว่า "เป็นบริษัท"
+const IS_COMPANY = /(บริษัท|ธนาคาร|ธุรกิจ|รัฐวิสาหกิจ|ผู้ผลิต|ผู้ให้บริการ|ผู้จำหน่าย|สายการบิน|ห้างสรรพสินค้า|กองทุนรวม|ทรัสต์|กลุ่มทุน|เครือ|compan(y|ies)|corporat(e|ion)|conglomerate|\bbank\b|enterprise|\bfirm\b|manufacturer|retailer|holding|airline|insurer|multinational|subsidiary|business|brand|producer of|provider of|operator of)/i;
+
+function looksLikeCompany(sum){
+  if(!sum || !sum.extract || sum.type === "disambiguation") return false;
+  const desc = String(sum.description||"");
+  const head = String(sum.extract).slice(0,320);
+  if(NOT_COMPANY.test(desc)) return false;          // คำบรรยายสั้นบอกชัดว่าไม่ใช่บริษัท
+  if(IS_COMPANY.test(desc)) return true;            // คำบรรยายสั้นบอกว่าเป็นบริษัท
+  if(NOT_COMPANY.test(head)) return false;
+  return IS_COMPANY.test(head);                     // ไม่งั้นดูจากย่อหน้าแรก
+}
+
+async function wikiSummary(lang, title){
+  return fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/` +
+    encodeURIComponent(String(title).replace(/ /g,"_"))).then(x=>x.ok?x.json():null).catch(()=>null);
+}
 async function wikiLookup(lang, q){
   const api = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=` +
-    encodeURIComponent(q) + `&srlimit=1&format=json&origin=*`;
+    encodeURIComponent(q) + `&srlimit=4&format=json&origin=*`;
   const s = await fetch(api).then(x=>x.ok?x.json():null).catch(()=>null);
-  const hit = s && s.query && s.query.search && s.query.search[0];
-  if(!hit) return null;
-  const sum = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/` +
-    encodeURIComponent(hit.title.replace(/ /g,"_"))).then(x=>x.ok?x.json():null).catch(()=>null);
-  if(!sum || !sum.extract || sum.type === "disambiguation") return null;
-  return {
-    lang, title: sum.title, extract: sum.extract,
-    url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page) || "",
-    qid: sum.wikibase_item || ""
-  };
+  const hits = (s && s.query && s.query.search) || [];
+  for(const hit of hits.slice(0,3)){
+    const sum = await wikiSummary(lang, hit.title);
+    if(!looksLikeCompany(sum)) continue;            // ข้ามบทความที่ไม่ใช่บริษัท
+    return {
+      lang, title: sum.title, extract: sum.extract,
+      url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page) || "",
+      qid: sum.wikibase_item || ""
+    };
+  }
+  return null;
 }
 async function wikidataSite(qid){
   if(!qid) return "";
@@ -1246,9 +1319,9 @@ async function loadBizDesc(r, elId){
   }
   if(curSym !== r.symbol) return;
   if(!hit){
-    const g = "https://www.google.com/search?q=" + encodeURIComponent((r.description||r.name||"") + " บริษัท ทำธุรกิจอะไร");
-    box.innerHTML = `<div class="mut" style="font-size:12px">ไม่พบคำอธิบายบริษัทนี้ในวิกิพีเดีย</div>
-      <div class="links" style="margin-top:8px"><a class="lk" href="${g}" target="_blank" rel="noopener noreferrer">ค้นหาข้อมูลบริษัท</a></div>`;
+    // ไม่มีข้อมูลที่เชื่อถือได้ → ซ่อนหัวข้อไปเลย ดีกว่าแสดงของผิด
+    const wrap = document.getElementById("bizwrap");
+    if(wrap) wrap.remove(); else box.remove();
     return;
   }
   const site = await wikidataSite(hit.qid);
@@ -1365,8 +1438,8 @@ function buildCompany(r,d){
   </div>
   <div class="note">งบย้อนหลังรายปีต้องดูจากลิงก์ด้านบน — TradingView scanner ให้เฉพาะค่าล่าสุด/TTM</div>`;
   return buildOverview(r,d)
-    + `<h3 style="margin:18px 0 8px">คำอธิบายบริษัท</h3>`
-    + `<div id="bizdesc"><span style="color:var(--tx3);font-size:12px">กำลังค้นหาข้อมูลบริษัท…</span></div>`
+    + `<div id="bizwrap"><h3 style="margin:18px 0 8px">คำอธิบายบริษัท</h3>`
+    + `<div id="bizdesc"><span style="color:var(--tx3);font-size:12px">กำลังค้นหาข้อมูลบริษัท…</span></div></div>`
     + `<h3 style="margin:18px 0 8px">งบการเงินและตัวเลขกิจการ</h3>`
     + `<div class="kv">${kv.map(([k,v])=>`<div><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join("")}</div>`
     + links;
@@ -1544,8 +1617,9 @@ async function doSearch(){
 $("#mkt").onclick = e => {
   const b=e.target.closest("button[data-m]"); if(!b) return;
   document.querySelectorAll("#mkt button").forEach(x=>x.classList.remove("on"));
-  b.classList.add("on"); S.market=b.dataset.m; S.preset=null; S.rows=[];
-  buildFilters(); buildTech(); buildChips(); render(); $("#st").textContent=""; $("#ai").innerHTML="";
+  b.classList.add("on"); S.market=b.dataset.m; S.preset=null; S.sector=null; S.rows=[];
+  buildFilters(); buildTech(); buildSectors(); buildChips(); render();
+  $("#st").textContent=""; $("#ai").innerHTML="";
   run([]);
 };
 $("#go").onclick = doSearch;
@@ -1554,7 +1628,7 @@ $("#go2").onclick = () => { S.preset=null; buildChips(); run(readManual()) };
 $("#clr").onclick = () => {
   $("#fgrid").querySelectorAll("input").forEach(i=>i.value="");
   $("#tgrid").querySelectorAll("input").forEach(i=>i.value="");
-  techOn.clear(); buildTech();
+  techOn.clear(); S.sector=null; buildTech(); buildSectors();
 };
 $("#wrst").onclick = () => { S.weights={value:20,quality:25,growth:20,momentum:20,tech:15}; save("w",S.weights); buildWeights(); rescore() };
 $("#reload").onclick = () => { S.preset=null; buildChips(); run(readManual()) };
@@ -1567,7 +1641,7 @@ $("#legend").innerHTML =
    ลากจาก 5 ปี → 3 ปี → 1 ปี → 6 เดือน → 3 เดือน → 1 เดือน → 1 สัปดาห์ → ปัจจุบัน
    (เขียว = ปลายเส้นสูงกว่าจุดเริ่ม, แดง = ต่ำกว่า) · เอาเมาส์ชี้เพื่อดูผลตอบแทนและรูปแบบกราฟที่ตรวจพบ`;
 
-buildFilters(); buildTech(); buildChips(); buildWeights(); run([]);
+buildFilters(); buildTech(); buildSectors(); buildChips(); buildWeights(); run([]);
 </script>
 </body>
 </html>
