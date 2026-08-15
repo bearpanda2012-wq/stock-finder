@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ค้นหาหุ้นอัจฉริยะ</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f7f7f5; --card:#ffffff; --line:#e4e4e0; --line2:#f0f0ec;
+  --tx:#1c1c1a; --tx2:#6b6b66; --tx3:#9a9a93;
+  --acc:#b8623a; --acc-bg:#fbf1ec;
+  --up:#0d8a5f; --dn:#c8402f;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+  font-family:"IBM Plex Sans Thai","Noto Sans Thai",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:13.5px;line-height:1.5}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:inherit}
+
+.wrap{max-width:1500px;margin:0 auto;padding:16px}
+
+/* header */
+.hd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.hd h1{font-size:19px;font-weight:650;margin:0;letter-spacing:-.2px}
+.hd .sub{color:var(--tx3);font-size:12px}
+
+/* market tabs */
+.mkt{display:flex;gap:4px;background:#ececE8;padding:3px;border-radius:9px;width:fit-content;margin-bottom:12px}
+.mkt button{border:0;background:transparent;padding:6px 15px;border-radius:7px;color:var(--tx2);font-weight:500;transition:.12s}
+.mkt button.on{background:var(--card);color:var(--tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+
+/* search */
+.searchrow{display:flex;gap:8px;margin-bottom:10px}
+.searchbox{flex:1;position:relative}
+.searchbox input{width:100%;padding:11px 13px 11px 36px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--card);outline:none;transition:.15s}
+.searchbox input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-bg)}
+.searchbox .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:14px}
+.btn{border:1px solid var(--line);background:var(--card);padding:0 16px;border-radius:var(--r);font-weight:600;color:var(--tx);white-space:nowrap}
+.btn:hover{border-color:#c9c9c3}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.pri:hover{background:#a3552f}
+.btn:disabled{opacity:.5;cursor:default}
+
+.hint{color:var(--tx3);font-size:11.5px;margin-bottom:12px}
+.hint b{color:var(--tx2);font-weight:500;cursor:pointer;border-bottom:1px dotted var(--tx3)}
+.hint b:hover{color:var(--acc);border-color:var(--acc)}
+
+/* presets */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--card);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--tx2)}
+.chip:hover{border-color:var(--acc);color:var(--acc)}
+.chip.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc);font-weight:600}
+
+/* filter panel */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.panel>summary{padding:10px 14px;cursor:pointer;font-weight:600;font-size:12.5px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.panel>summary::-webkit-details-marker{display:none}
+.panel>summary::after{content:"▾";color:var(--tx3);font-size:11px}
+.panel[open]>summary{border-bottom:1px solid var(--line2)}
+.panel[open]>summary::after{content:"▴"}
+.fgrid{padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 14px}
+.f label{display:block;font-size:11px;color:var(--tx2);margin-bottom:3px;font-weight:500}
+.f .duo{display:flex;gap:5px;align-items:center}
+.f input,.f select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;outline:none;min-width:0}
+.f input:focus,.f select:focus{border-color:var(--acc)}
+.f .duo span{color:var(--tx3);font-size:11px}
+.fbar{padding:10px 14px;border-top:1px solid var(--line2);display:flex;gap:8px;align-items:center}
+.fbar .sp{flex:1}
+.mini{font-size:11.5px;padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--tx2)}
+.mini:hover{border-color:var(--acc);color:var(--acc)}
+
+/* weights */
+.wts{padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 16px}
+.wt label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx2);margin-bottom:2px}
+.wt label b{color:var(--acc);font-variant-numeric:tabular-nums}
+.wt input[type=range]{width:100%;accent-color:var(--acc)}
+
+/* status */
+.status{display:flex;align-items:center;gap:8px;padding:8px 2px;font-size:12px;color:var(--tx2);min-height:30px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:p 1s infinite}
+@keyframes p{0%,100%{opacity:.3}50%{opacity:1}}
+.err{background:#fdf2f0;border:1px solid #f0d5cf;color:#a33;padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:10px}
+
+/* ai note */
+.ainote{background:var(--acc-bg);border:1px solid #ecd9cd;border-radius:var(--r);padding:11px 13px;font-size:12.5px;margin-bottom:12px;white-space:pre-wrap}
+.ainote .tag{display:inline-block;background:var(--acc);color:#fff;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:7px;vertical-align:1px;letter-spacing:.4px}
+
+/* table */
+.tblwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:auto;max-height:70vh}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+thead th{position:sticky;top:0;background:#fafaf8;z-index:2;text-align:right;padding:8px 10px;font-weight:600;
+  font-size:11px;color:var(--tx2);border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+thead th:first-child,thead th:nth-child(2){text-align:left}
+thead th:hover{color:var(--acc)}
+thead th.srt{color:var(--acc)}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--line2);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+tbody td:first-child,tbody td:nth-child(2){text-align:left}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#fafaf8}
+tbody tr.sel{background:var(--acc-bg)}
+.sym{font-weight:650}
+.nm{color:var(--tx2);font-size:11.5px;max-width:230px;overflow:hidden;text-overflow:ellipsis;display:block}
+.up{color:var(--up)} .dn{color:var(--dn)} .mut{color:var(--tx3)}
+.rk{color:var(--tx3);font-size:11px;width:28px}
+
+.scr{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;width:100%}
+.bar{width:38px;height:5px;background:#eceae6;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.scv{font-weight:650;min-width:22px}
+
+.badge{display:inline-block;padding:1.5px 7px;border-radius:5px;font-size:10.5px;font-weight:650}
+.b-sb{background:#dcf2e8;color:#0a6b4a} .b-b{background:#e8f5ee;color:#0d8a5f}
+.b-n{background:#f0f0ec;color:#77776f}
+.b-s{background:#fbeae7;color:#c8402f} .b-ss{background:#f7ddd8;color:#a32e20}
+
+/* drawer */
+.ov{position:fixed;inset:0;background:rgba(20,20,18,.32);opacity:0;pointer-events:none;transition:.18s;z-index:40}
+.ov.on{opacity:1;pointer-events:auto}
+.dw{position:fixed;top:0;right:0;bottom:0;width:min(480px,94vw);background:var(--card);z-index:50;
+  transform:translateX(100%);transition:.22s cubic-bezier(.4,0,.2,1);overflow-y:auto;box-shadow:-8px 0 28px rgba(0,0,0,.1)}
+.dw.on{transform:none}
+.dwh{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:2}
+.dwh h2{margin:0;font-size:17px;font-weight:650}
+.dwh p{margin:2px 0 0;color:var(--tx2);font-size:12px}
+.x{border:0;background:#f0f0ec;width:26px;height:26px;border-radius:7px;color:var(--tx2);font-size:15px;line-height:1;flex-shrink:0}
+.x:hover{background:#e4e4e0}
+.dwb{padding:16px 18px 40px}
+.sec{margin-bottom:20px}
+.sec h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin:0 0 8px;font-weight:700}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.kv div{background:#fff;padding:7px 10px;display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.kv span{color:var(--tx2)} .kv b{font-weight:600;font-variant-numeric:tabular-nums}
+.tf{display:flex;gap:6px;flex-wrap:wrap}
+.tfc{flex:1;min-width:82px;border:1px solid var(--line);border-radius:8px;padding:9px 6px;text-align:center}
+.tfc .t{font-size:10.5px;color:var(--tx3);font-weight:600;margin-bottom:4px}
+.chartbox{height:210px;position:relative}
+.aibox{background:var(--acc-bg);border:1px solid #ecd9cd;border-radius:8px;padding:11px 12px;font-size:12.5px;white-space:pre-wrap;line-height:1.6}
+
+/* events / news */
+.evt{list-style:none;margin:0;padding:0}
+.evt li{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12.5px;align-items:flex-start}
+.evt li:last-child{border-bottom:0}
+.evt .ei{width:16px;flex-shrink:0;text-align:center;font-size:12px;line-height:1.5}
+.evt .et{flex:1}
+.evt .ed{color:var(--tx3);font-size:11px;white-space:nowrap}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.lk{display:inline-block;border:1px solid var(--line);border-radius:7px;padding:5px 11px;font-size:11.5px;
+  color:var(--tx2);text-decoration:none;background:#fff}
+.lk:hover{border-color:var(--acc);color:var(--acc)}
+.lk::after{content:" ↗";font-size:9px;color:var(--tx3)}
+.note{color:var(--tx3);font-size:11px;margin-top:8px;line-height:1.5}
+
+/* analyst */
+.rbar{display:flex;height:9px;border-radius:5px;overflow:hidden;background:#f0f0ec;margin:4px 0 6px}
+.rbar i{display:block;height:100%}
+.rleg{display:flex;gap:12px;font-size:11.5px;color:var(--tx2);margin-bottom:12px}
+.rleg span{display:flex;align-items:center;gap:5px}
+.rleg u{width:8px;height:8px;border-radius:2px;text-decoration:none;display:inline-block}
+.trg{margin-top:4px}
+.trgbar{position:relative;height:26px;margin:16px 0 8px}
+.trgbar .track{position:absolute;top:11px;left:0;right:0;height:4px;background:#eceae6;border-radius:2px}
+.trgbar .fill{position:absolute;top:11px;height:4px;background:#d9c4b6;border-radius:2px}
+.trgbar .pin{position:absolute;top:4px;width:2px;height:18px;background:var(--tx);border-radius:1px}
+.trgbar .pin.avg{background:var(--acc);width:3px}
+.trgbar .cap{position:absolute;top:-12px;font-size:10px;color:var(--tx3);transform:translateX(-50%);white-space:nowrap}
+.upside{font-size:13px;font-weight:650}
+.empty{padding:44px 20px;text-align:center;color:var(--tx3);font-size:13px}
+.foot{margin-top:14px;color:var(--tx3);font-size:11px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <h1>ค้นหาหุ้นอัจฉริยะ</h1>
+    <span class="sub">ข้อมูลสดจาก TradingView · คัดกรอง · ให้คะแนน · วิเคราะห์</span>
+  </div>
+
+  <div class="mkt" id="mkt">
+    <button data-m="thailand" class="on">หุ้นไทย</button>
+    <button data-m="america">หุ้นสหรัฐฯ</button>
+    <button data-m="crypto">คริปโต</button>
+  </div>
+
+  <div class="searchrow">
+    <div class="searchbox">
+      <span class="ic">⌕</span>
+      <input id="q" placeholder="พิมพ์ชื่อหุ้น (PTT, ปตท, AAPL, BTC) หรือเงื่อนไข เช่น “หุ้นปันผลสูง P/E ต่ำ”">
+    </div>
+    <button class="btn pri" id="go">ค้นหา</button>
+  </div>
+
+  <div class="hint">
+    <span style="color:var(--tx2);font-weight:600">ชื่อหุ้น:</span>
+    <b class="ex">PTT</b> ·
+    <b class="ex">ปตท</b> ·
+    <b class="ex">AAPL NVDA TSLA</b> ·
+    <b class="ex">bitcoin</b>
+    &nbsp;&nbsp;<span style="color:var(--tx2);font-weight:600">เงื่อนไข:</span>
+    <b class="ex">หุ้นปันผลสูงกว่า 4% และ P/E ต่ำกว่า 15</b> ·
+    <b class="ex">หุ้นเติบโตแรง รายได้โต 15% ขึ้นไป</b> ·
+    <b class="ex">หุ้นถูก P/B ต่ำ ROE สูง</b>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <details class="panel" id="fpanel">
+    <summary>ตัวกรองละเอียด</summary>
+    <div class="fgrid" id="fgrid"></div>
+    <div class="fbar">
+      <button class="mini" id="clr">ล้างตัวกรอง</button>
+      <span class="sp"></span>
+      <label style="font-size:11.5px;color:var(--tx2)">แสดง
+        <select id="lim" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;margin-left:4px">
+          <option>30</option><option selected>50</option><option>100</option><option>200</option>
+        </select> อันดับ
+      </label>
+      <button class="btn pri" style="padding:6px 16px" id="go2">คัดกรอง</button>
+    </div>
+  </details>
+
+  <details class="panel">
+    <summary>น้ำหนักการให้คะแนน</summary>
+    <div class="wts" id="wts"></div>
+    <div class="fbar"><button class="mini" id="wrst">คืนค่าเริ่มต้น</button></div>
+  </details>
+
+  <div id="err"></div>
+  <div class="status" id="st"></div>
+  <div id="ai"></div>
+
+  <div class="tblwrap">
+    <table id="tbl">
+      <thead id="th"></thead>
+      <tbody id="tb"><tr><td class="empty" colspan="20">กดปุ่ม “ค้นหา” หรือเลือกกลยุทธ์ด้านบนเพื่อเริ่มต้น</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="foot">
+    คะแนน 0–100 คำนวณจากข้อมูลจริงตามน้ำหนักที่ตั้งไว้ (คุณค่า / คุณภาพ / เติบโต / โมเมนตัม / เทคนิค) — เป็นเครื่องมือช่วยคัดกรอง ไม่ใช่คำแนะนำการลงทุน<br>
+    ราคาและตัวเลขทั้งหมดดึงสดจาก TradingView ทุกครั้งที่เปิดหน้านี้ · กด Reload ด้านบนเพื่อดึงข้อมูลใหม่
+  </div>
+</div>
+
+<div class="ov" id="ov"></div>
+<aside class="dw" id="dw">
+  <div class="dwh">
+    <div><h2 id="dwt">—</h2><p id="dws">—</p></div>
+    <button class="x" id="dwx">✕</button>
+  </div>
+  <div class="dwb" id="dwb"></div>
+</aside>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+
+/* ---------- state ---------- */
+const S = {
+  market: "thailand",
+  rows: [],
+  sortKey: "_score",
+  sortDir: "desc",
+  preset: null,
+  weights: load("w", {value:20, quality:25, growth:20, momentum:20, tech:15})
+};
+function load(k,d){ try{ const v=localStorage.getItem("sf_"+k); return v?JSON.parse(v):d }catch(e){ return d } }
+function save(k,v){ try{ localStorage.setItem("sf_"+k, JSON.stringify(v)) }catch(e){} }
+
+const isCrypto = () => S.market === "crypto";
+
+/* ---------- field defs for the manual filter panel ---------- */
+const STOCK_FILTERS = [
+  {k:"market_cap_basic", l:"มูลค่าตลาด (ล้าน)", mul:1e6},
+  {k:"close", l:"ราคา"},
+  {k:"price_earnings_ttm", l:"P/E"},
+  {k:"price_book_fq", l:"P/B"},
+  {k:"dividends_yield_current", l:"ปันผล %"},
+  {k:"return_on_equity", l:"ROE %"},
+  {k:"net_margin_ttm", l:"อัตรากำไรสุทธิ %"},
+  {k:"total_revenue_yoy_growth_ttm", l:"รายได้โต YoY %"},
+  {k:"earnings_per_share_diluted_yoy_growth_ttm", l:"EPS โต YoY %"},
+  {k:"debt_to_equity", l:"D/E"},
+  {k:"RSI", l:"RSI"},
+  {k:"Perf.YTD", l:"ผลตอบแทน YTD %"},
+  {k:"Perf.Y", l:"ผลตอบแทน 1 ปี %"},
+  {k:"volume", l:"ปริมาณซื้อขาย"}
+];
+const CRYPTO_FILTERS = [
+  {k:"market_cap_calc", l:"มูลค่าตลาด (ล้าน USD)", mul:1e6},
+  {k:"close", l:"ราคา (USD)"},
+  {k:"RSI", l:"RSI"},
+  {k:"Perf.W", l:"ผลตอบแทน 1 สัปดาห์ %"},
+  {k:"Perf.1M", l:"ผลตอบแทน 1 เดือน %"},
+  {k:"Perf.YTD", l:"ผลตอบแทน YTD %"},
+  {k:"change", l:"เปลี่ยนแปลงวันนี้ %"}
+];
+const curFilters = () => isCrypto() ? CRYPTO_FILTERS : STOCK_FILTERS;
+
+const STOCK_COLS = ["name","description","close","change","volume","market_cap_basic","price_earnings_ttm",
+  "price_book_fq","return_on_equity","net_margin_ttm","total_revenue_yoy_growth_ttm",
+  "earnings_per_share_diluted_yoy_growth_ttm","dividends_yield_current","debt_to_equity","RSI",
+  "Recommend.All","Perf.W","Perf.1M","Perf.3M","Perf.6M","Perf.YTD","Perf.Y","Perf.3Y","Perf.5Y",
+  "sector","exchange","is_primary",
+  "price_52_week_high","price_52_week_low","SMA50","SMA200","relative_volume_10d_calc",
+  "piotroski_f_score_ttm","altman_z_score_ttm","free_cash_flow_margin_ttm","price_target_average","industry"];
+const CRYPTO_COLS = ["base_currency_desc","close","change","market_cap_calc","volume","RSI","Recommend.All",
+  "Perf.W","Perf.1M","Perf.3M","Perf.6M","Perf.YTD","Perf.Y","exchange","SMA50","SMA200"];
+// คอลัมน์เพิ่มเติม ดึงเฉพาะตอนเปิดแผงรายตัว
+const DETAIL_COLS = ["name","description","close","country","industry","sector","number_of_employees",
+  "total_shares_outstanding_current","fundamental_currency_code","market_cap_basic",
+  "earnings_release_next_trading_date_fq","earnings_per_share_forecast_next_fq","revenue_forecast_next_fq",
+  "recommendation_buy","recommendation_hold","recommendation_sell","recommendation_mark",
+  "price_target_average","price_target_high","price_target_low",
+  "total_revenue","net_income","ebitda","total_assets","total_debt","current_ratio",
+  "earnings_per_share_diluted_ttm","revenue_per_share_ttm","continuous_dividend_payout","indexes"];
+
+/* ---------- presets ---------- */
+const PRESETS = [
+  {id:"value", n:"หุ้นถูก (Value)", f:[
+    {field:"price_earnings_ttm",operator:"in_range",value:[0.5,15]},
+    {field:"price_book_fq",operator:"in_range",value:[0.1,2]},
+    {field:"return_on_equity",operator:"greater",value:8}],
+    w:{value:40,quality:25,growth:10,momentum:10,tech:15}},
+  {id:"div", n:"ปันผลสูง", f:[
+    {field:"dividends_yield_current",operator:"greater",value:4},
+    {field:"price_earnings_ttm",operator:"in_range",value:[0.5,25]}],
+    w:{value:30,quality:30,growth:10,momentum:10,tech:20}},
+  {id:"growth", n:"เติบโตสูง (Growth)", f:[
+    {field:"total_revenue_yoy_growth_ttm",operator:"greater",value:15},
+    {field:"earnings_per_share_diluted_yoy_growth_ttm",operator:"greater",value:10}],
+    w:{value:5,quality:20,growth:45,momentum:20,tech:10}},
+  {id:"quality", n:"คุณภาพดี (Quality)", f:[
+    {field:"return_on_equity",operator:"greater",value:15},
+    {field:"net_margin_ttm",operator:"greater",value:10},
+    {field:"debt_to_equity",operator:"less",value:1.5}],
+    w:{value:15,quality:45,growth:20,momentum:10,tech:10}},
+  {id:"mom", n:"โมเมนตัม", f:[
+    {field:"Perf.3M",operator:"greater",value:5},
+    {field:"RSI",operator:"in_range",value:[45,72]}],
+    w:{value:5,quality:10,growth:15,momentum:45,tech:25}},
+  {id:"garp", n:"GARP (โตในราคาเหมาะ)", f:[
+    {field:"total_revenue_yoy_growth_ttm",operator:"greater",value:10},
+    {field:"return_on_equity",operator:"greater",value:15},
+    {field:"price_earnings_ttm",operator:"in_range",value:[0.5,30]}],
+    w:{value:25,quality:25,growth:30,momentum:10,tech:10}},
+  {id:"break", n:"ใกล้ทำจุดสูงสุด", f:[
+    {field:"RSI",operator:"in_range",value:[50,75]},
+    {field:"Perf.6M",operator:"greater",value:10}],
+    w:{value:5,quality:10,growth:10,momentum:40,tech:35}}
+];
+const CRYPTO_PRESETS = [
+  {id:"cbig", n:"เหรียญหลัก (Top Cap)", f:[{field:"market_cap_calc",operator:"greater",value:1e9}], w:{momentum:50,tech:50,value:0,quality:0,growth:0}},
+  {id:"cmom", n:"โมเมนตัมแรง", f:[{field:"Perf.1M",operator:"greater",value:10},{field:"market_cap_calc",operator:"greater",value:1e8}], w:{momentum:60,tech:40,value:0,quality:0,growth:0}},
+  {id:"cdip", n:"ย่อตัว (RSI ต่ำ)", f:[{field:"RSI",operator:"less",value:40},{field:"market_cap_calc",operator:"greater",value:5e8}], w:{momentum:30,tech:70,value:0,quality:0,growth:0}},
+  {id:"cbuy", n:"สัญญาณเทคนิคดี", f:[{field:"Recommend.All",operator:"greater",value:0.3},{field:"market_cap_calc",operator:"greater",value:2e8}], w:{momentum:35,tech:65,value:0,quality:0,growth:0}}
+];
+
+/* ---------- formatting ---------- */
+const nz = v => (v===null||v===undefined||Number.isNaN(v)) ? null : v;
+function num(v,d=2){ v=nz(v); return v===null?"–":Number(v).toLocaleString("th-TH",{minimumFractionDigits:d,maximumFractionDigits:d}) }
+function pct(v,d=1){ v=nz(v); if(v===null)return "–"; return (v>0?"+":"")+Number(v).toFixed(d)+"%" }
+function cap(v){ v=nz(v); if(v===null)return "–";
+  const a=Math.abs(v);
+  if(a>=1e12) return (v/1e12).toFixed(2)+" ล้านล้าน";
+  if(a>=1e9)  return (v/1e9).toFixed(2)+" พันล้าน";
+  if(a>=1e6)  return (v/1e6).toFixed(1)+" ล้าน";
+  return num(v,0) }
+function vol(v){ v=nz(v); if(v===null)return "–";
+  if(v>=1e9) return (v/1e9).toFixed(2)+"B"; if(v>=1e6) return (v/1e6).toFixed(2)+"M";
+  if(v>=1e3) return (v/1e3).toFixed(1)+"K"; return num(v,0) }
+function cls(v){ v=nz(v); return v===null?"mut":(v>0?"up":v<0?"dn":"mut") }
+
+function recLabel(r){
+  r = nz(r); if(r===null) return {t:"–",c:"b-n"};
+  if(r>=0.5) return {t:"ซื้อมาก",c:"b-sb"};
+  if(r>=0.1) return {t:"ซื้อ",c:"b-b"};
+  if(r>-0.1) return {t:"ถือ",c:"b-n"};
+  if(r>-0.5) return {t:"ขาย",c:"b-s"};
+  return {t:"ขายมาก",c:"b-ss"};
+}
+const scColor = s => s>=75?"#0d8a5f":s>=60?"#5a9e3c":s>=45?"#c99a29":s>=30?"#d1762f":"#c8402f";
+
+/* ---------- scoring ---------- */
+// map a value onto 0..100 with a target band
+function band(v, lo, hi, invert){
+  v = nz(v); if(v===null) return null;
+  let t = (v-lo)/(hi-lo);
+  t = Math.max(0, Math.min(1, t));
+  return (invert ? 1-t : t) * 100;
+}
+function avg(arr){ const a=arr.filter(x=>x!==null&&!Number.isNaN(x)); return a.length? a.reduce((s,x)=>s+x,0)/a.length : null }
+
+function pillars(r){
+  if(isCrypto()){
+    const momentum = avg([
+      band(r["Perf.W"], -15, 15), band(r["Perf.1M"], -30, 40), band(r["Perf.3M"], -50, 80)
+    ]);
+    const rsi = nz(r.RSI);
+    const rsiScore = rsi===null? null : (rsi<30? 55 : rsi<50? 70 : rsi<65? 85 : rsi<75? 55 : 25);
+    const tech = avg([ band(r["Recommend.All"], -1, 1), rsiScore,
+      (nz(r.close)!==null&&nz(r.SMA200)) ? (r.close>r.SMA200?85:35) : null ]);
+    return {value:null, quality:null, growth:null, momentum, tech};
+  }
+  const pe = nz(r.price_earnings_ttm), pb = nz(r.price_book_fq);
+  const value = avg([
+    (pe!==null && pe>0) ? band(pe, 5, 40, true) : (pe!==null ? 20 : null),
+    (pb!==null && pb>0) ? band(pb, 0.5, 6, true) : null,
+    band(r.dividends_yield_current, 0, 7)
+  ]);
+  const de = nz(r.debt_to_equity);
+  const quality = avg([
+    band(r.return_on_equity, 0, 30),
+    band(r.net_margin_ttm, 0, 25),
+    band(r.free_cash_flow_margin_ttm, -5, 25),
+    de!==null ? band(de, 0, 2.5, true) : null,
+    band(r.piotroski_f_score_ttm, 3, 9)
+  ]);
+  const growth = avg([
+    band(r.total_revenue_yoy_growth_ttm, -5, 35),
+    band(r.earnings_per_share_diluted_yoy_growth_ttm, -10, 50)
+  ]);
+  const momentum = avg([
+    band(r["Perf.1M"], -12, 15), band(r["Perf.3M"], -20, 30), band(r["Perf.YTD"], -25, 45), band(r["Perf.Y"], -30, 60)
+  ]);
+  const rsi = nz(r.RSI);
+  const rsiScore = rsi===null? null : (rsi<30? 60 : rsi<45? 70 : rsi<60? 88 : rsi<70? 65 : 30);
+  const tech = avg([
+    band(r["Recommend.All"], -1, 1), rsiScore,
+    (nz(r.close)!==null && nz(r.SMA200)) ? (r.close>r.SMA200?85:35) : null,
+    (nz(r.SMA50)!==null && nz(r.SMA200)) ? (r.SMA50>r.SMA200?80:40) : null
+  ]);
+  return {value, quality, growth, momentum, tech};
+}
+
+function score(r){
+  const p = pillars(r); r._p = p;
+  const W = S.weights; let tot=0, sum=0;
+  for(const k of ["value","quality","growth","momentum","tech"]){
+    if(p[k]===null || !W[k]) continue;
+    sum += p[k]*W[k]; tot += W[k];
+  }
+  return tot? Math.round(sum/tot) : 0;
+}
+
+/* ---------- MCP ---------- */
+// askClaude can return a quota/limit notice instead of a real answer — treat that as "unavailable"
+const LIMITY = /session limit|rate limit|usage limit|hit your limit|try again later|quota/i;
+async function ask(prompt, data){
+  const res = await window.cowork.askClaude(prompt, data||[]);
+  const txt = (typeof res==="string" ? res : (res && (res.text||res.content))) || "";
+  const t = String(txt).trim();
+  if(!t || (t.length < 160 && LIMITY.test(t))) throw new Error("ai_unavailable");
+  return t;
+}
+
+async function mcp(tool, args){
+  const r = await window.cowork.callMcpTool(tool, args);
+  if(r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||"tool error");
+  if(r.structuredContent) return r.structuredContent;
+  return JSON.parse(r.content[0].text);
+}
+
+/* ---------- UI: filter panel ---------- */
+function buildFilters(){
+  const g = $("#fgrid"); g.innerHTML="";
+  curFilters().forEach(f=>{
+    const d = el("div","f");
+    d.innerHTML = `<label>${f.l}</label><div class="duo">
+      <input type="number" placeholder="ต่ำสุด" data-k="${f.k}" data-b="min" data-mul="${f.mul||1}">
+      <span>–</span>
+      <input type="number" placeholder="สูงสุด" data-k="${f.k}" data-b="max" data-mul="${f.mul||1}"></div>`;
+    g.appendChild(d);
+  });
+}
+function readManual(){
+  const map={}, out=[];
+  $("#fgrid").querySelectorAll("input").forEach(i=>{
+    if(i.value==="") return;
+    const v = parseFloat(i.value)*parseFloat(i.dataset.mul||1);
+    if(Number.isNaN(v)) return;
+    (map[i.dataset.k] = map[i.dataset.k]||{})[i.dataset.b]=v;
+  });
+  for(const k in map){
+    const m=map[k];
+    if(m.min!==undefined && m.max!==undefined) out.push({field:k,operator:"in_range",value:[m.min,m.max]});
+    else if(m.min!==undefined) out.push({field:k,operator:"greater_or_equal",value:m.min});
+    else out.push({field:k,operator:"less_or_equal",value:m.max});
+  }
+  return out;
+}
+function applyFilterUI(fs){
+  $("#fgrid").querySelectorAll("input").forEach(i=>i.value="");
+  const known = new Set(curFilters().map(f=>f.k));
+  let shown=0;
+  fs.forEach(f=>{
+    if(!known.has(f.field)) return;
+    const def = curFilters().find(x=>x.k===f.field), mul = def.mul||1;
+    const set=(b,v)=>{ const i=$(`#fgrid input[data-k="${f.field}"][data-b="${b}"]`); if(i){ i.value = +(v/mul).toFixed(4); shown++ } };
+    if(f.operator==="in_range" && Array.isArray(f.value)){ set("min",f.value[0]); set("max",f.value[1]) }
+    else if(/greater/.test(f.operator)) set("min", f.value);
+    else if(/less/.test(f.operator)) set("max", f.value);
+  });
+  if(shown) $("#fpanel").open = true;
+}
+
+/* ---------- UI: presets & weights ---------- */
+function buildChips(){
+  const c=$("#chips"); c.innerHTML="";
+  (isCrypto()?CRYPTO_PRESETS:PRESETS).forEach(p=>{
+    const b = el("button","chip"+(S.preset===p.id?" on":""), p.n);
+    b.onclick = ()=>{
+      if(S.preset===p.id){ S.preset=null; buildChips(); return }
+      S.preset=p.id; buildChips();
+      if(p.w){ S.weights={...S.weights,...p.w}; save("w",S.weights); buildWeights() }
+      applyFilterUI(p.f);
+      run(p.f);
+    };
+    c.appendChild(b);
+  });
+}
+const WLBL={value:"คุณค่า",quality:"คุณภาพ",growth:"เติบโต",momentum:"โมเมนตัม",tech:"เทคนิค"};
+function buildWeights(){
+  const w=$("#wts"); w.innerHTML="";
+  Object.keys(WLBL).forEach(k=>{
+    const d=el("div","wt");
+    d.innerHTML=`<label>${WLBL[k]} <b>${S.weights[k]}</b></label><input type="range" min="0" max="50" value="${S.weights[k]}" data-k="${k}">`;
+    d.querySelector("input").oninput = e => {
+      S.weights[k]=+e.target.value; d.querySelector("b").textContent=S.weights[k];
+      save("w",S.weights); rescore();
+    };
+    w.appendChild(d);
+  });
+}
+function rescore(){ if(!S.rows.length) return; S.rows.forEach(r=>r._score=score(r)); render() }
+
+/* ---------- run screen ---------- */
+async function run(filters, aiNote){
+  const st=$("#st"); $("#err").innerHTML=""; $("#ai").innerHTML="";
+  st.innerHTML='<span class="dot"></span> กำลังดึงข้อมูลสดจาก TradingView…';
+  $("#go").disabled=$("#go2").disabled=true;
+  const limit = +$("#lim").value;
+
+  try{
+    let data;
+    if(isCrypto()){
+      const fs = [{field:"exchange",operator:"equal",value:"BINANCE"}, ...(filters||[])];
+      data = await mcp("mcp__tradingview__screen_crypto",{
+        columns:CRYPTO_COLS, filters:fs, sort_by:"market_cap_calc", sort_order:"desc",
+        limit: Math.max(limit, 120)
+      });
+      S.rows = (data.cryptocurrencies||[]).map(r=>({...r, description:r.base_currency_desc, name:(r.symbol||"").split(":")[1]||r.symbol}));
+    }else{
+      const fs = [{field:"is_primary",operator:"equal",value:true}, ...(filters||[])];
+      data = await mcp("mcp__tradingview__screen_stocks",{
+        markets:[S.market], columns:STOCK_COLS, filters:fs,
+        sort_by:"market_cap_basic", sort_order:"desc", limit: Math.max(limit, 150)
+      });
+      S.rows = data.stocks||[];
+    }
+    S.rows.forEach(r=>r._score=score(r));
+    S.rows.sort((a,b)=>b._score-a._score);
+    S.rows = S.rows.slice(0, limit);
+    S.sortKey="_score"; S.sortDir="desc";
+
+    const total = data.total_count ?? S.rows.length;
+    st.innerHTML = `พบ <b>${total.toLocaleString("th-TH")}</b> รายการที่เข้าเกณฑ์ · แสดง <b>${S.rows.length}</b> อันดับแรกเรียงตามคะแนน`;
+    if(aiNote) $("#ai").innerHTML = `<div class="ainote"><span class="tag">AI</span>${escapeHtml(aiNote)}</div>`;
+    render();
+    if(S.rows.length) summarize();
+  }catch(e){
+    console.error("screen failed", e);
+    st.textContent="";
+    $("#err").innerHTML = `<div class="err">ดึงข้อมูลไม่สำเร็จ: ${escapeHtml(e.message||String(e))}</div>`;
+  }finally{
+    $("#go").disabled=$("#go2").disabled=false;
+  }
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
+
+/* ---------- ค้นหาด้วยชื่อ / ตัวย่อหุ้น ---------- */
+// ชื่อไทย/ชื่อเล่นที่ TradingView ไม่รู้จัก → ตัวย่อ
+const ALIAS = {
+  "ปตท":"PTT","ปตท.":"PTT","ปตทสผ":"PTTEP","ปตท.สผ":"PTTEP","ปูนใหญ่":"SCC","ปูนซิเมนต์ไทย":"SCC","เอสซีจี":"SCC",
+  "ท่าอากาศยาน":"AOT","สนามบิน":"AOT","กสิกร":"KBANK","กสิกรไทย":"KBANK","ไทยพาณิชย์":"SCB","เอสซีบี":"SCB",
+  "ธนาคารกรุงเทพ":"BBL","กรุงเทพ":"BBL","กรุงไทย":"KTB","กรุงศรี":"BAY","ทหารไทย":"TTB","ทีทีบี":"TTB",
+  "ซีพีออลล์":"CPALL","ซีพี":"CPALL","เซเว่น":"CPALL","ซีพีเอฟ":"CPF","เจริญโภคภัณฑ์":"CPF","แม็คโคร":"CPAXT",
+  "เอไอเอส":"ADVANC","แอดวานซ์":"ADVANC","ทรู":"TRUE","อินทัช":"INTUCH","เดลต้า":"DELTA","กัลฟ์":"GULF",
+  "บ้านปู":"BANPU","การบินไทย":"THAI","ไทยเบฟ":"THBEV","เซ็นทรัล":"CPN","ไออาร์พีซี":"IRPC","บางจาก":"BCP",
+  "แอปเปิล":"AAPL","แอปเปิ้ล":"AAPL","เทสลา":"TSLA","ไมโครซอฟท์":"MSFT","ไมโครซอฟต์":"MSFT","กูเกิล":"GOOGL",
+  "อเมซอน":"AMZN","เอ็นวิเดีย":"NVDA","เอ็นวิเดีย.":"NVDA","เมตา":"META","เฟซบุ๊ก":"META","เน็ตฟลิกซ์":"NFLX",
+  "บิทคอยน์":"BTC","บิตคอยน์":"BTC","อีเธอเรียม":"ETH","อีเธอ":"ETH","โซลานา":"SOL","ริปเปิล":"XRP","โดจ":"DOGE"
+};
+// คำที่บ่งบอกว่าเป็น "การคัดกรอง" ไม่ใช่ชื่อหุ้น
+const SCREEN_WORDS = /(สูง|ต่ำ|กว่า|ขึ้นไป|ปันผล|เติบโต|โต\b|กำไร|ถูก|แพง|โมเมนตัม|แนวโน้ม|น่าสนใจ|แนะนำ|ดีที่สุด|อันดับ|ทั้งหมด|ระหว่าง|มูลค่าตลาด|อัตรา|ผลตอบแทน|%|p\s*\/\s*[eb]|roe|roa|rsi|peg|eps|market\s*cap|top\b|best\b|under\b|over\b|\d)/i;
+const STRIP = /^(หุ้น|ราคา|เหรียญ|ขอ|ดู|ค้นหา|ข้อมูล|วิเคราะห์|บริษัท|เกี่ยวกับ|ตัว)\s*/i;
+const MARKET_LBL = {thailand:"หุ้นไทย", america:"หุ้นสหรัฐฯ", crypto:"คริปโต"};
+
+function tokenize(q){
+  let s = q.trim();
+  let prev; do { prev = s; s = s.replace(STRIP,"") } while(s !== prev);
+  return s.split(/[,\s\/]+/).map(t=>t.trim()).filter(Boolean)
+          .map(t => ALIAS[t] || ALIAS[t.replace(/[.\s]/g,"")] || t)
+          .slice(0,8);
+}
+
+function rankHits(rows, toks){
+  const seen = new Set(), out = [];
+  rows.forEach(r=>{ if(!r || seen.has(r.symbol)) return; seen.add(r.symbol); out.push(r) });
+  const T = toks.map(t=>t.toUpperCase());
+  out.forEach(r=>{
+    const n = String(r.name||"").toUpperCase().replace(/USD$/,"");
+    r._hit = T.includes(n) ? 0 : T.some(t=>n.startsWith(t)) ? 1 : 2;
+  });
+  return out.sort((a,b)=> a._hit - b._hit ||
+    ((b.market_cap_basic||b.market_cap_calc||0) - (a.market_cap_basic||a.market_cap_calc||0)));
+}
+
+async function lookupIn(market, toks){
+  if(market === "crypto"){
+    const res = await Promise.all(toks.map(t =>
+      mcp("mcp__tradingview__screen_crypto",{
+        columns: CRYPTO_COLS.concat(["base_currency"]),
+        filters:[{field:"exchange",operator:"equal",value:"BINANCE"},{field:"base_currency",operator:"match",value:t}],
+        sort_by:"market_cap_calc", sort_order:"desc", limit:40
+      }).catch(()=>({cryptocurrencies:[]}))));
+    let rows = [];
+    res.forEach(r => rows = rows.concat(r.cryptocurrencies||[]));
+    rows = rows.filter(r => /:[A-Z0-9]+USD$/.test(r.symbol||""))
+               .map(r => ({...r, description:r.base_currency_desc, name:(r.symbol||"").split(":")[1]||r.symbol}));
+    return rankHits(rows, toks);
+  }
+  const fs = [];
+  toks.forEach(t=>{
+    fs.push({field:"name", operator:"match", value:t});
+    if(t.length >= 4) fs.push({field:"description", operator:"match", value:t});
+  });
+  const res = await Promise.all(fs.map(f =>
+    mcp("mcp__tradingview__screen_stocks",{
+      markets:[market], columns:STOCK_COLS,
+      filters:[{field:"is_primary",operator:"equal",value:true}, f],
+      sort_by:"market_cap_basic", sort_order:"desc", limit:20
+    }).catch(()=>({stocks:[]}))));
+  let rows = [];
+  res.forEach(r => rows = rows.concat(r.stocks||[]));
+  return rankHits(rows, toks);
+}
+
+function switchMarket(m){
+  S.market = m;
+  $("#mkt").querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.m===m));
+  buildFilters();
+}
+
+// คืนค่า true ถ้าเจอและแสดงผลแล้ว
+async function symbolSearch(q){
+  const toks = tokenize(q);
+  if(!toks.length) return false;
+  const order = [S.market, ...["thailand","america","crypto"].filter(m=>m!==S.market)];
+  for(const m of order){
+    let rows;
+    try{ rows = await lookupIn(m, toks) }catch(e){ console.warn("lookup failed", m, e); continue }
+    if(!rows.length) continue;
+    const exact = rows.filter(r=>r._hit === 0);
+    rows = (exact.length ? exact.concat(rows.filter(r=>r._hit>0).slice(0, 12)) : rows).slice(0, 25);
+
+    if(m !== S.market) switchMarket(m);
+    S.preset = null; buildChips();
+    S.rows = rows;
+    S.rows.forEach(r=>r._score = score(r));
+    S.sortKey = "_score"; S.sortDir = "desc";
+    $("#err").innerHTML = "";
+    $("#st").innerHTML = `ผลค้นหาชื่อ “<b>${escapeHtml(toks.join(", "))}</b>” ใน ${MARKET_LBL[m]} · พบ <b>${rows.length}</b> รายการ` +
+      (m !== order[0] ? ` <span class="mut">(สลับตลาดให้อัตโนมัติ)</span>` : "");
+    $("#ai").innerHTML = "";
+    render();
+    // ตรงตัวเดียว → เปิดแผงวิเคราะห์ให้เลย
+    if(exact.length === 1 && toks.length === 1){
+      const tb = $("#tb").querySelector("tr"); if(tb) tb.classList.add("sel");
+      detail(exact[0]);
+    }
+    return true;
+  }
+  return false;
+}
+
+/* ---------- natural language ---------- */
+async function nlSearch(){
+  const q = $("#q").value.trim();
+  if(!q){ run(S.preset ? (isCrypto()?CRYPTO_PRESETS:PRESETS).find(p=>p.id===S.preset).f : []); return }
+
+  // 1) ถ้าไม่มีคำเชิงเงื่อนไข ให้ลองมองเป็นชื่อ/ตัวย่อหุ้นก่อน
+  if(!SCREEN_WORDS.test(q)){
+    $("#st").innerHTML = '<span class="dot"></span> กำลังค้นหาชื่อหุ้น…';
+    $("#go").disabled = true;
+    try{ if(await symbolSearch(q)) return }
+    catch(e){ console.warn("symbolSearch error", e) }
+    finally{ $("#go").disabled = false }
+  }
+  $("#st").innerHTML='<span class="dot"></span> กำลังแปลงคำค้นเป็นเงื่อนไข…';
+  const fields = curFilters().map(f=>`${f.k} (${f.l})`).join(", ") +
+    (isCrypto()?"":", Perf.3M, Perf.6M, price_52_week_high, Recommend.All, free_cash_flow_margin_ttm, piotroski_f_score_ttm, altman_z_score_ttm, relative_volume_10d_calc, sector");
+  const prompt = `You convert a Thai-language stock screening request into TradingView screener filters.
+Available numeric fields: ${fields}
+Percent fields are expressed as whole numbers (e.g. ROE 15% -> 15). market_cap is in absolute currency units (1 พันล้าน = 1000000000).
+Also suggest scoring weights (integers 0-50) for: value, quality, growth, momentum, tech.
+Return ONLY minified JSON, no markdown, shaped exactly:
+{"filters":[{"field":"...","operator":"greater|less|greater_or_equal|less_or_equal|in_range","value":number or [min,max]}],"weights":{"value":n,"quality":n,"growth":n,"momentum":n,"tech":n},"note":"อธิบายเงื่อนไขที่ตีความได้ เป็นภาษาไทย สั้น 1-2 ประโยค"}
+If the request implies no numeric filter, return an empty filters array but still set weights and note.
+User request: ${q}`;
+  try{
+    const txt = await ask(prompt, []);
+    const m = txt.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error("no json");
+    const parsed = JSON.parse(m[0]);
+    const fs = (parsed.filters||[]).filter(f=>f && f.field && f.operator && f.value!==undefined);
+    if(parsed.weights){
+      const w = parsed.weights;
+      ["value","quality","growth","momentum","tech"].forEach(k=>{ if(typeof w[k]==="number") S.weights[k]=Math.max(0,Math.min(50,Math.round(w[k]))) });
+      save("w",S.weights); buildWeights();
+    }
+    S.preset=null; buildChips();
+    applyFilterUI(fs);
+    await run(fs, parsed.note||"");
+  }catch(e){
+    console.warn("nl parse failed, falling back to manual filters", e);
+    const msg = e.message==="ai_unavailable"
+      ? "ตอนนี้ผู้ช่วย AI ใช้งานไม่ได้ชั่วคราว — ใช้ตัวกรองในแผง “ตัวกรองละเอียด” หรือกลยุทธ์สำเร็จรูปด้านบนแทนได้"
+      : "ตีความคำค้นอัตโนมัติไม่สำเร็จ — ใช้ตัวกรองที่ตั้งไว้ในแผงแทน";
+    await run(readManual(), msg);
+  }
+}
+
+/* ---------- overview summary ---------- */
+async function summarize(){
+  const top = S.rows.slice(0,10).map(r=>({
+    symbol:r.symbol, name:r.description, score:r._score,
+    pe:r.price_earnings_ttm, roe:r.return_on_equity, div:r.dividends_yield_current,
+    revGrowth:r.total_revenue_yoy_growth_ttm, perf3M:r["Perf.3M"], perfYTD:r["Perf.YTD"],
+    rsi:r.RSI, rec:r["Recommend.All"], sector:r.sector
+  }));
+  try{
+    const txt = await ask(
+      `สรุปภาพรวมผลการคัดกรองนี้เป็นภาษาไทย 2-3 ประโยค: กลุ่มหุ้นที่ติดอันดับมีลักษณะร่วมอะไร ตัวไหนน่าสนใจและทำไม และมีข้อควรระวังอะไร ห้ามให้คำแนะนำซื้อขายตรงๆ ตอบเป็นข้อความล้วน ไม่ต้องใส่หัวข้อ`, top);
+    $("#ai").innerHTML += `<div class="ainote"><span class="tag">สรุป</span>${escapeHtml(txt)}</div>`;
+  }catch(e){ console.warn("summary skipped", e) }
+}
+
+/* ---------- table ---------- */
+const COLS_STOCK = [
+  {k:"_rank", l:"#", r:r=>`<span class="rk">${r._rank}</span>`, ns:1},
+  {k:"symbol", l:"หุ้น", r:r=>`<span class="sym">${escapeHtml(r.name||"")}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
+  {k:"_score", l:"คะแนน", r:r=>`<span class="scr"><span class="bar"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></span><span class="scv" style="color:${scColor(r._score)}">${r._score}</span></span>`},
+  {k:"close", l:"ราคา", r:r=>num(r.close,2)},
+  {k:"change", l:"วันนี้", r:r=>`<span class="${cls(r.change)}">${pct(r.change)}</span>`},
+  {k:"Perf.YTD", l:"YTD", r:r=>`<span class="${cls(r["Perf.YTD"])}">${pct(r["Perf.YTD"])}</span>`},
+  {k:"Perf.Y", l:"1 ปี", r:r=>`<span class="${cls(r["Perf.Y"])}">${pct(r["Perf.Y"])}</span>`},
+  {k:"market_cap_basic", l:"มูลค่าตลาด", r:r=>cap(r.market_cap_basic)},
+  {k:"price_earnings_ttm", l:"P/E", r:r=>num(r.price_earnings_ttm,1)},
+  {k:"price_book_fq", l:"P/B", r:r=>num(r.price_book_fq,2)},
+  {k:"return_on_equity", l:"ROE", r:r=>nz(r.return_on_equity)===null?"–":num(r.return_on_equity,1)+"%"},
+  {k:"dividends_yield_current", l:"ปันผล", r:r=>nz(r.dividends_yield_current)===null?"–":num(r.dividends_yield_current,2)+"%"},
+  {k:"total_revenue_yoy_growth_ttm", l:"รายได้โต", r:r=>`<span class="${cls(r.total_revenue_yoy_growth_ttm)}">${pct(r.total_revenue_yoy_growth_ttm)}</span>`},
+  {k:"RSI", l:"RSI", r:r=>num(r.RSI,0)},
+  {k:"Recommend.All", l:"สัญญาณ", r:r=>{const b=recLabel(r["Recommend.All"]); return `<span class="badge ${b.c}">${b.t}</span>`}},
+  {k:"sector", l:"กลุ่ม", r:r=>`<span class="mut">${escapeHtml(r.sector||"–")}</span>`}
+];
+const COLS_CRYPTO = [
+  {k:"_rank", l:"#", r:r=>`<span class="rk">${r._rank}</span>`, ns:1},
+  {k:"symbol", l:"เหรียญ", r:r=>`<span class="sym">${escapeHtml((r.name||"").replace(/USD$/,""))}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
+  {k:"_score", l:"คะแนน", r:r=>`<span class="scr"><span class="bar"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></span><span class="scv" style="color:${scColor(r._score)}">${r._score}</span></span>`},
+  {k:"close", l:"ราคา (USD)", r:r=>num(r.close, r.close<1?5:2)},
+  {k:"change", l:"วันนี้", r:r=>`<span class="${cls(r.change)}">${pct(r.change)}</span>`},
+  {k:"Perf.W", l:"7 วัน", r:r=>`<span class="${cls(r["Perf.W"])}">${pct(r["Perf.W"])}</span>`},
+  {k:"Perf.1M", l:"1 เดือน", r:r=>`<span class="${cls(r["Perf.1M"])}">${pct(r["Perf.1M"])}</span>`},
+  {k:"Perf.YTD", l:"YTD", r:r=>`<span class="${cls(r["Perf.YTD"])}">${pct(r["Perf.YTD"])}</span>`},
+  {k:"market_cap_calc", l:"มูลค่าตลาด", r:r=>cap(r.market_cap_calc)},
+  {k:"RSI", l:"RSI", r:r=>num(r.RSI,0)},
+  {k:"Recommend.All", l:"สัญญาณ", r:r=>{const b=recLabel(r["Recommend.All"]); return `<span class="badge ${b.c}">${b.t}</span>`}}
+];
+const cols = () => isCrypto()?COLS_CRYPTO:COLS_STOCK;
+
+function render(){
+  const C = cols();
+  $("#th").innerHTML = "<tr>"+C.map(c=>`<th data-k="${c.k}" class="${S.sortKey===c.k?"srt":""}">${c.l}${S.sortKey===c.k?(S.sortDir==="desc"?" ↓":" ↑"):""}</th>`).join("")+"</tr>";
+  $("#th").querySelectorAll("th").forEach(th=>{
+    const k=th.dataset.k; if(k==="_rank") return;
+    th.onclick=()=>{ if(S.sortKey===k) S.sortDir=S.sortDir==="desc"?"asc":"desc"; else {S.sortKey=k;S.sortDir="desc"} render() };
+  });
+
+  const rows=[...S.rows].sort((a,b)=>{
+    const k=S.sortKey; let x=a[k], y=b[k];
+    if(typeof x==="string"||typeof y==="string"){ x=String(x??""); y=String(y??"");
+      return S.sortDir==="desc"? y.localeCompare(x) : x.localeCompare(y) }
+    x = (x===null||x===undefined||Number.isNaN(x)) ? -Infinity : x;
+    y = (y===null||y===undefined||Number.isNaN(y)) ? -Infinity : y;
+    return S.sortDir==="desc"? y-x : x-y;
+  });
+  rows.forEach((r,i)=>r._rank=i+1);
+
+  const tb=$("#tb");
+  if(!rows.length){ tb.innerHTML=`<tr><td class="empty" colspan="${C.length}">ไม่พบรายการที่ตรงเงื่อนไข — ลองผ่อนเกณฑ์ลง</td></tr>`; return }
+  tb.innerHTML = rows.map((r,i)=>`<tr data-i="${i}">`+C.map(c=>`<td>${c.r(r)}</td>`).join("")+"</tr>").join("");
+  tb.querySelectorAll("tr").forEach(tr=>{
+    tr.onclick=()=>{ tb.querySelectorAll("tr").forEach(t=>t.classList.remove("sel")); tr.classList.add("sel"); detail(rows[+tr.dataset.i]) };
+  });
+}
+
+/* ---------- ข่าว / นักวิเคราะห์ / ข้อมูลบริษัท ---------- */
+function tvSlug(sym){ return String(sym||"").replace(":","-") }
+function newsLinks(r){
+  const sym = r.symbol||"", tkr = (sym.split(":")[1]||sym), ex = sym.split(":")[0];
+  const q = encodeURIComponent(`${tkr} ${r.description||""}`.trim());
+  const L = [["TradingView", `https://www.tradingview.com/symbols/${tvSlug(sym)}/news/`],
+             ["Google News", `https://news.google.com/search?q=${q}&hl=th&gl=TH`]];
+  if(isCrypto()) L.push(["CoinDesk", `https://www.coindesk.com/search?s=${encodeURIComponent(r.description||tkr)}`]);
+  else if(ex === "SET" || ex === "MAI"){
+    L.push(["SETTRADE", `https://www.settrade.com/th/equities/quote/${encodeURIComponent(tkr)}/news`]);
+    L.push(["ข่าวหุ้น (ค้นไทย)", `https://news.google.com/search?q=${encodeURIComponent("หุ้น "+tkr)}&hl=th&gl=TH`]);
+  } else {
+    L.push(["Yahoo Finance", `https://finance.yahoo.com/quote/${encodeURIComponent(tkr)}/news`]);
+    L.push(["Reuters", `https://www.reuters.com/site-search/?query=${q}`]);
+  }
+  return L.map(([n,u])=>`<a class="lk" href="${u}" target="_blank" rel="noopener noreferrer">${n}</a>`).join("");
+}
+function fmtDate(sec){
+  const v = nz(sec); if(v===null) return null;
+  const d = new Date(v*1000); if(isNaN(d)) return null;
+  return d.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"});
+}
+function daysTo(sec){
+  const v = nz(sec); if(v===null) return null;
+  return Math.round((v*1000 - Date.now())/86400000);
+}
+
+// เหตุการณ์ที่อ่านได้จากตัวเลขจริง (ไม่ใช่การเดา)
+function buildEvents(r, d){
+  const E = [];
+  const push = (i,t,x) => E.push({i,t,x:x||""});
+  const ern = d && d.earnings_release_next_trading_date_fq;
+  if(fmtDate(ern)){
+    const n = daysTo(ern);
+    push("📅", `ประกาศผลประกอบการไตรมาสถัดไป`, fmtDate(ern) + (n>=0 && n<400 ? ` (อีก ${n} วัน)` : ""));
+  }
+  const hi = nz(r.price_52_week_high), lo = nz(r.price_52_week_low), c = nz(r.close);
+  if(hi!==null && c!==null && hi>0){
+    const off = (c-hi)/hi*100;
+    if(off > -3) push("🔺","ราคาอยู่ใกล้จุดสูงสุดรอบ 52 สัปดาห์", `ห่าง ${off.toFixed(1)}%`);
+    else if(lo!==null && lo>0 && (c-lo)/lo*100 < 8) push("🔻","ราคาอยู่ใกล้จุดต่ำสุดรอบ 52 สัปดาห์", `ห่าง +${((c-lo)/lo*100).toFixed(1)}%`);
+  }
+  const ch = nz(r.change);
+  if(ch!==null && Math.abs(ch) >= 3) push(ch>0?"⚡":"⚡", `ราคาเคลื่อนไหวแรงวันนี้`, pct(ch));
+  const rv = nz(r.relative_volume_10d_calc);
+  if(rv!==null && rv >= 1.5) push("📊","ปริมาณซื้อขายคึกคักผิดปกติ", `${rv.toFixed(2)} เท่าของค่าเฉลี่ย 10 วัน`);
+  else if(rv!==null && rv <= 0.5) push("💤","ปริมาณซื้อขายเบาบางกว่าปกติ", `${rv.toFixed(2)} เท่า`);
+  const s50 = nz(r.SMA50), s200 = nz(r.SMA200);
+  if(s50!==null && s200!==null) push(s50>s200?"📈":"📉",
+    s50>s200 ? "เส้นค่าเฉลี่ย 50 วันอยู่เหนือ 200 วัน (Golden Cross)" : "เส้นค่าเฉลี่ย 50 วันอยู่ใต้ 200 วัน (Death Cross)", "");
+  if(c!==null && s200!==null) push(c>s200?"✅":"⚠️", c>s200 ? "ราคายืนเหนือเส้นค่าเฉลี่ย 200 วัน" : "ราคาต่ำกว่าเส้นค่าเฉลี่ย 200 วัน", "");
+  const rsi = nz(r.RSI);
+  if(rsi!==null && rsi >= 70) push("🔥","RSI เข้าเขตซื้อมากเกินไป", rsi.toFixed(0));
+  else if(rsi!==null && rsi <= 30) push("🧊","RSI เข้าเขตขายมากเกินไป", rsi.toFixed(0));
+  const p1 = nz(r["Perf.1M"]);
+  if(p1!==null && Math.abs(p1) >= 15) push(p1>0?"🚀":"🩸", `เดือนที่ผ่านมาเคลื่อนไหว ${pct(p1)}`, "");
+  if(!E.length) push("—","ไม่พบเหตุการณ์เด่นจากข้อมูลราคาล่าสุด","");
+  return `<ul class="evt">${E.map(e=>
+    `<li><span class="ei">${e.i}</span><span class="et">${escapeHtml(e.t)}</span><span class="ed">${escapeHtml(e.x)}</span></li>`).join("")}</ul>`;
+}
+
+// อัตราแลกเปลี่ยนโดยนัย: TradingView รายงานงบ/เป้าหมายเป็น USD แต่ราคาเป็นสกุลท้องถิ่น
+function impliedFx(r, d){
+  const mc = nz(r.market_cap_basic) ?? nz(d && d.market_cap_basic);
+  const sh = nz(d && d.total_shares_outstanding_current);
+  const c  = nz(r.close);
+  if(mc===null || sh===null || c===null || sh<=0 || mc<=0 || c<=0) return 1;
+  const usdPrice = mc/sh;
+  const fx = c/usdPrice;
+  return (fx > 0.02 && fx < 2000) ? fx : 1;
+}
+
+function buildAnalyst(r, d){
+  if(!d) return `<div class="mut" style="font-size:12px">ไม่มีข้อมูล</div>`;
+  const b = nz(d.recommendation_buy)||0, h = nz(d.recommendation_hold)||0, s = nz(d.recommendation_sell)||0;
+  const tot = b+h+s;
+  let out = "";
+  if(tot > 0){
+    const p = x => (x/tot*100).toFixed(1)+"%";
+    out += `<div class="rbar">
+      <i style="width:${p(b)};background:#0d8a5f"></i>
+      <i style="width:${p(h)};background:#c3c3bc"></i>
+      <i style="width:${p(s)};background:#c8402f"></i></div>
+      <div class="rleg">
+        <span><u style="background:#0d8a5f"></u>ซื้อ ${b}</span>
+        <span><u style="background:#c3c3bc"></u>ถือ ${h}</span>
+        <span><u style="background:#c8402f"></u>ขาย ${s}</span>
+        <span class="mut">รวม ${tot} สำนัก</span>
+      </div>`;
+  }
+  const fx = impliedFx(r, d);
+  const c = nz(r.close);
+  const av = nz(d.price_target_average), hi = nz(d.price_target_high), lo = nz(d.price_target_low);
+  if(av!==null && c!==null && av>0){
+    const A = av*fx, H = (hi!==null?hi*fx:A), L = (lo!==null?lo*fx:A);
+    const up = (A-c)/c*100;
+    const min = Math.min(L,c)*0.97, max = Math.max(H,c)*1.03, span = max-min || 1;
+    const at = v => ((v-min)/span*100).toFixed(1)+"%";
+    out += `<div class="trg">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:11.5px;color:var(--tx2)">ราคาเป้าหมายเฉลี่ย</span>
+        <span class="upside ${up>0?"up":"dn"}">${num(A,2)} <span style="font-weight:400;font-size:11.5px">(${pct(up)} จากราคาปัจจุบัน)</span></span>
+      </div>
+      <div class="trgbar">
+        <div class="track"></div>
+        <div class="fill" style="left:${at(L)};width:${(( (H-L)/span)*100).toFixed(1)}%"></div>
+        <div class="cap" style="left:${at(L)}">ต่ำ ${num(L,2)}</div>
+        <div class="cap" style="left:${at(H)}">สูง ${num(H,2)}</div>
+        <div class="pin" style="left:${at(c)}"></div>
+        <div class="pin avg" style="left:${at(A)}"></div>
+      </div>
+      <div class="mut" style="font-size:11px">เส้นเข้ม = ราคาปัจจุบัน ${num(c,2)} · เส้นส้ม = เป้าหมายเฉลี่ย</div>
+    </div>`;
+  }
+  const kv = [];
+  const eps = nz(d.earnings_per_share_forecast_next_fq), rev = nz(d.revenue_forecast_next_fq);
+  if(eps!==null) kv.push(["EPS คาดการณ์ไตรมาสหน้า", num(eps*fx,3)]);
+  if(rev!==null) kv.push(["รายได้คาดการณ์ไตรมาสหน้า", cap(rev)+" USD"]);
+  if(fmtDate(d.earnings_release_next_trading_date_fq)) kv.push(["วันประกาศงบถัดไป", fmtDate(d.earnings_release_next_trading_date_fq)]);
+  const rm = nz(d.recommendation_mark);
+  if(rm!==null){
+    const lbl = rm<1.5?"ซื้อมาก":rm<2.5?"ซื้อ":rm<3.5?"ถือ":rm<4.5?"ขาย":"ขายมาก";
+    kv.push(["ฉันทามตินักวิเคราะห์", `${lbl} (${num(rm,2)} — 1 ดีสุด, 5 แย่สุด)`]);
+  }
+  if(kv.length) out += `<div class="kv" style="margin-top:10px">${kv.map(([k,v])=>`<div><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join("")}</div>`;
+  if(!out) out = `<div class="mut" style="font-size:12px">ไม่มีนักวิเคราะห์ครอบคลุมหลักทรัพย์นี้</div>`;
+  else if(fx !== 1) out += `<div class="note">ตัวเลขคาดการณ์จาก TradingView รายงานเป็น USD — แปลงเป็นสกุลเงินราคาซื้อขายด้วยอัตราโดยนัย ≈ ${num(fx,2)}</div>`;
+  return out;
+}
+
+function buildCompany(r, d){
+  if(!d) return `<div class="mut" style="font-size:12px">ไม่มีข้อมูล</div>`;
+  const cur = d.fundamental_currency_code || "";
+  const kv = [
+    ["กลุ่มธุรกิจ", r.sector || d.sector || "–"],
+    ["อุตสาหกรรม", d.industry || r.industry || "–"],
+    ["ประเทศ", d.country || "–"],
+    ["ตลาด", r.exchange || "–"],
+    ["พนักงาน", nz(d.number_of_employees)===null ? "–" : num(d.number_of_employees,0)+" คน"],
+    ["จำนวนหุ้น", nz(d.total_shares_outstanding_current)===null ? "–" : cap(d.total_shares_outstanding_current)+" หุ้น"],
+    ["รายได้ (TTM)", nz(d.total_revenue)===null?"–":cap(d.total_revenue)+" "+cur],
+    ["กำไรสุทธิ", nz(d.net_income)===null?"–":cap(d.net_income)+" "+cur],
+    ["EBITDA", nz(d.ebitda)===null?"–":cap(d.ebitda)+" "+cur],
+    ["สินทรัพย์รวม", nz(d.total_assets)===null?"–":cap(d.total_assets)+" "+cur],
+    ["หนี้สินรวม", nz(d.total_debt)===null?"–":cap(d.total_debt)+" "+cur],
+    ["Current Ratio", num(d.current_ratio,2)],
+    ["EPS (TTM)", num(d.earnings_per_share_diluted_ttm,3)],
+    ["จ่ายปันผลติดต่อกัน", nz(d.continuous_dividend_payout)===null?"–":num(d.continuous_dividend_payout,0)+" ปี"]
+  ];
+  let out = `<div class="kv">${kv.map(([k,v])=>`<div><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join("")}</div>`;
+  const idx = Array.isArray(d.indexes)
+    ? d.indexes.map(x => (x && x.name) ? x.name : String(x)).filter(Boolean)
+    : (d.indexes ? [String(d.indexes)] : []);
+  if(idx.length) out += `<div class="note">อยู่ในดัชนี: ${escapeHtml(idx.join(" · "))}</div>`;
+  out += `<div class="aibox" id="prof" style="margin-top:10px">กำลังสรุปว่าบริษัทนี้ทำธุรกิจอะไร…</div>`;
+  return out;
+}
+
+/* ---------- กราฟราคาย้อนหลัง ----------
+   TradingView screener ไม่ส่งราคารายวันมาให้ แต่ส่ง "ผลตอบแทน" แต่ละช่วงมา
+   จึงย้อนคำนวณราคา ณ จุดนั้นได้จริง:  ราคาเมื่อก่อน = ราคาปัจจุบัน / (1 + ผลตอบแทน/100)
+   จุดบนกราฟทุกจุดจึงเป็นราคาจริงในอดีต เพียงแต่ไม่ใช่กราฟรายวันต่อเนื่อง
+------------------------------------------- */
+const PERF_POINTS = [["Perf.5Y","5 ปี",1825],["Perf.3Y","3 ปี",1095],["Perf.Y","1 ปี",365],
+  ["Perf.6M","6 เดือน",182],["Perf.3M","3 เดือน",91],["Perf.1M","1 เดือน",30],["Perf.W","1 สัปดาห์",7]];
+
+function pricePoints(r){
+  const c = nz(r.close); if(c===null || c<=0) return null;
+  const labels=[], values=[];
+  PERF_POINTS.forEach(([k,l])=>{
+    const p = nz(r[k]); if(p===null) return;
+    const then = c/(1+p/100);
+    if(!isFinite(then) || then<=0) return;
+    labels.push(l); values.push(then);
+  });
+  labels.push("ปัจจุบัน"); values.push(c);
+  return labels.length>=3 ? {labels, values} : null;
+}
+
+function drawPriceChart(canvas, r){
+  const pp = pricePoints(r);
+  if(!pp || !window.Chart){
+    canvas.parentElement.innerHTML = `<div style="color:var(--tx3);font-size:12px;padding:20px 0;text-align:center">ข้อมูลผลตอบแทนไม่พอสำหรับวาดกราฟ</div>`;
+    return null;
+  }
+  const n = pp.labels.length;
+  const flat = v => (nz(v)===null ? null : new Array(n).fill(v));
+  const up = pp.values[n-1] >= pp.values[0];
+  const line = up ? "#0d8a5f" : "#c8402f";
+  const fill = up ? "rgba(13,138,95,.10)" : "rgba(200,64,47,.10)";
+  const ds = [{
+    label:"ราคา", data:pp.values, borderColor:line, backgroundColor:fill,
+    borderWidth:2.2, pointRadius:3.5, pointBackgroundColor:line, pointBorderColor:"#fff",
+    pointBorderWidth:1.5, tension:.28, fill:true, order:1
+  }];
+  const extra = [["SMA 50", r.SMA50, "#8a8a83"], ["SMA 200", r.SMA200, "#c2a58f"],
+                 ["สูงสุด 52 สัปดาห์", r.price_52_week_high, "#d8d6d0"], ["ต่ำสุด 52 สัปดาห์", r.price_52_week_low, "#d8d6d0"]];
+  extra.forEach(([l,v,col])=>{
+    const d = flat(v); if(!d) return;
+    ds.push({label:l, data:d, borderColor:col, borderWidth:1, borderDash:[4,4],
+      pointRadius:0, fill:false, tension:0, order:2});
+  });
+  return new Chart(canvas, {
+    type:"line", data:{labels:pp.labels, datasets:ds},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{
+        legend:{display:true, position:"bottom", labels:{boxWidth:10, boxHeight:2, font:{size:10}, color:"#6b6b66", padding:10, usePointStyle:false}},
+        tooltip:{callbacks:{label: ctx => `${ctx.dataset.label}: ${num(ctx.parsed.y, ctx.parsed.y<1?5:2)}`}}
+      },
+      scales:{
+        x:{grid:{display:false}, ticks:{font:{size:10}, color:"#9a9a93"}},
+        y:{grid:{color:"#f0f0ec"}, ticks:{font:{size:10}, color:"#9a9a93",
+          callback: v => v<1 ? v.toFixed(4) : v.toLocaleString("th-TH")}}
+      }
+    }
+  });
+}
+
+/* ---------- detail drawer ---------- */
+let chart=null, pchart=null, curSym=null;
+function openDw(on){ $("#dw").classList.toggle("on",on); $("#ov").classList.toggle("on",on) }
+$("#dwx").onclick=()=>openDw(false); $("#ov").onclick=()=>openDw(false);
+
+async function detail(r){
+  openDw(true);
+  curSym = r.symbol;
+  $("#dwt").textContent = (r.name||r.symbol||"").replace(/USD$/,"");
+  $("#dws").textContent = r.description || r.symbol || "";
+  const p = r._p || {};
+  const rowsKV = isCrypto() ? [
+    ["ราคา", num(r.close, r.close<1?5:2)+" USD"], ["วันนี้", pct(r.change)],
+    ["มูลค่าตลาด", cap(r.market_cap_calc)], ["RSI (14)", num(r.RSI,1)],
+    ["7 วัน", pct(r["Perf.W"])], ["1 เดือน", pct(r["Perf.1M"])],
+    ["3 เดือน", pct(r["Perf.3M"])], ["YTD", pct(r["Perf.YTD"])]
+  ] : [
+    ["ราคา", num(r.close,2)], ["วันนี้", pct(r.change)],
+    ["มูลค่าตลาด", cap(r.market_cap_basic)], ["กลุ่ม", r.sector||"–"],
+    ["P/E", num(r.price_earnings_ttm,2)], ["P/B", num(r.price_book_fq,2)],
+    ["ROE", nz(r.return_on_equity)===null?"–":num(r.return_on_equity,1)+"%"],
+    ["กำไรสุทธิ", nz(r.net_margin_ttm)===null?"–":num(r.net_margin_ttm,1)+"%"],
+    ["ปันผล", nz(r.dividends_yield_current)===null?"–":num(r.dividends_yield_current,2)+"%"],
+    ["D/E", num(r.debt_to_equity,2)],
+    ["รายได้โต YoY", pct(r.total_revenue_yoy_growth_ttm)],
+    ["EPS โต YoY", pct(r.earnings_per_share_diluted_yoy_growth_ttm)],
+    ["Piotroski F", nz(r.piotroski_f_score_ttm)===null?"–":num(r.piotroski_f_score_ttm,0)+" / 9"],
+    ["Altman Z", num(r.altman_z_score_ttm,2)],
+    ["52 สัปดาห์ สูง", num(r.price_52_week_high,2)],
+    ["52 สัปดาห์ ต่ำ", num(r.price_52_week_low,2)],
+    ["RSI (14)", num(r.RSI,1)],
+    ["ปริมาณเทียบเฉลี่ย", num(r.relative_volume_10d_calc,2)+" เท่า"]
+  ];
+
+  $("#dwb").innerHTML = `
+    <div class="sec">
+      <h3>กราฟราคา</h3>
+      <div class="chartbox" style="height:230px"><canvas id="pch"></canvas></div>
+      <div class="note">จุดบนกราฟคือราคาจริงในอดีต ย้อนคำนวณจากผลตอบแทนแต่ละช่วง — ไม่ใช่กราฟรายวันต่อเนื่อง จึงไม่เห็นความผันผวนระหว่างจุด</div>
+    </div>
+    <div class="sec">
+      <h3>คะแนนรวม</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="font-size:34px;font-weight:700;color:${scColor(r._score)};line-height:1">${r._score}</div>
+        <div style="flex:1"><div class="bar" style="width:100%;height:8px"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:4px">ตามน้ำหนักที่ตั้งไว้</div></div>
+      </div>
+      <div class="chartbox"><canvas id="rad"></canvas></div>
+    </div>
+    <div class="sec"><h3>สัญญาณเทคนิคหลายกรอบเวลา</h3><div class="tf" id="tfz"><span style="color:var(--tx3);font-size:12px">กำลังโหลด…</span></div></div>
+    <div class="sec"><h3>ข่าวและเหตุการณ์ล่าสุด</h3>
+      <div id="evz"><span style="color:var(--tx3);font-size:12px">กำลังโหลด…</span></div>
+      <div class="links">${newsLinks(r)}</div>
+      <div class="note">เหตุการณ์ด้านบนสรุปจากข้อมูลราคา/ปริมาณ/ปฏิทินงบจริง · พาดหัวข่าวเปิดอ่านได้จากลิงก์</div>
+    </div>
+    ${isCrypto() ? "" : `<div class="sec"><h3>การคาดการณ์ของนักวิเคราะห์</h3><div id="anz"><span style="color:var(--tx3);font-size:12px">กำลังโหลด…</span></div></div>
+    <div class="sec"><h3>ข้อมูลบริษัท</h3><div id="coz"><span style="color:var(--tx3);font-size:12px">กำลังโหลด…</span></div></div>`}
+    <div class="sec"><h3>ข้อมูลสำคัญ</h3><div class="kv">${rowsKV.map(([k,v])=>`<div><span>${k}</span><b>${escapeHtml(String(v))}</b></div>`).join("")}</div></div>
+    <div class="sec"><h3>บทวิเคราะห์</h3><div class="aibox" id="an">กำลังวิเคราะห์…</div></div>`;
+
+  // กราฟราคา
+  if(pchart){ pchart.destroy(); pchart=null }
+  const pcv = $("#pch"); if(pcv) pchart = drawPriceChart(pcv, r);
+
+  // radar
+  const labels=[], vals=[];
+  [["value","คุณค่า"],["quality","คุณภาพ"],["growth","เติบโต"],["momentum","โมเมนตัม"],["tech","เทคนิค"]].forEach(([k,l])=>{
+    if(p[k]!==null && p[k]!==undefined){ labels.push(l); vals.push(Math.round(p[k])) }
+  });
+  if(chart){ chart.destroy(); chart=null }
+  if(labels.length>=3){
+    chart = new Chart($("#rad"), {type:"radar", data:{labels, datasets:[{data:vals,
+      backgroundColor:"rgba(184,98,58,.18)", borderColor:"#b8623a", pointBackgroundColor:"#b8623a", borderWidth:2, pointRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:9},color:"#9a9a93",backdropColor:"transparent"},
+          grid:{color:"#eceae6"},angleLines:{color:"#eceae6"},pointLabels:{font:{size:11},color:"#6b6b66"}}}}});
+  } else { $("#rad").parentElement.innerHTML = `<div style="color:var(--tx3);font-size:12px">ข้อมูลไม่พอสำหรับกราฟองค์ประกอบ</div>` }
+
+  // รายละเอียดเพิ่มเติม: ข่าว/เหตุการณ์ · นักวิเคราะห์ · ข้อมูลบริษัท
+  (async ()=>{
+    let d = null;
+    if(!isCrypto()){
+      try{
+        const res = await mcp("mcp__tradingview__screen_stocks",{
+          markets:[S.market], columns:DETAIL_COLS,
+          filters:[{field:"name",operator:"equal",value:r.name}], limit:5});
+        d = (res.stocks||[]).find(x=>x.symbol===r.symbol) || (res.stocks||[])[0] || null;
+      }catch(e){ console.warn("detail fetch failed", e) }
+    }
+    if(curSym !== r.symbol) return; // ผู้ใช้เปลี่ยนหุ้นระหว่างรอ
+    if($("#evz")) $("#evz").innerHTML = buildEvents(r, d);
+    if($("#anz")) $("#anz").innerHTML = buildAnalyst(r, d);
+    if($("#coz")) $("#coz").innerHTML = buildCompany(r, d);
+    if($("#prof")){
+      try{
+        $("#prof").textContent = await ask(
+          `บริษัทนี้ทำธุรกิจอะไร อธิบายเป็นภาษาไทย 2-3 ประโยค ครอบคลุมสินค้า/บริการหลักและแหล่งรายได้ ถ้าไม่รู้จักบริษัทนี้จริงๆ ให้ตอบว่า "ไม่มีข้อมูลบริษัทนี้ในฐานความรู้" เท่านั้น ห้ามเดา ตอบเป็นข้อความล้วน`,
+          [{symbol:r.symbol, name:r.description, sector:r.sector, industry:d&&d.industry, country:d&&d.country,
+            employees:d&&d.number_of_employees, revenue:d&&d.total_revenue}]);
+      }catch(e){ $("#prof").textContent = "ไม่สามารถสรุปข้อมูลบริษัทได้ในขณะนี้" }
+    }
+  })();
+
+  // TA
+  try{
+    const ta = await mcp("mcp__tradingview__get_ta_summary",{symbols:[r.symbol], timeframes:["60","240","1D","1W","1M"]});
+    const tfs = (ta.symbols&&ta.symbols[0]&&ta.symbols[0].timeframes)||{};
+    const LBL={"60":"1 ชม.","240":"4 ชม.","1D":"รายวัน","1W":"รายสัปดาห์","1M":"รายเดือน"};
+    const SUM={strong_buy:{t:"ซื้อมาก",c:"b-sb"},buy:{t:"ซื้อ",c:"b-b"},neutral:{t:"ถือ",c:"b-n"},sell:{t:"ขาย",c:"b-s"},strong_sell:{t:"ขายมาก",c:"b-ss"}};
+    const z = Object.keys(tfs).map(k=>{ const s=SUM[tfs[k].summary]||SUM.neutral;
+      return `<div class="tfc"><div class="t">${LBL[k]||k}</div><span class="badge ${s.c}">${s.t}</span></div>` }).join("");
+    $("#tfz").innerHTML = z || '<span style="color:var(--tx3);font-size:12px">ไม่มีข้อมูล</span>';
+  }catch(e){ console.warn("ta failed", e); $("#tfz").innerHTML='<span style="color:var(--tx3);font-size:12px">ดึงสัญญาณเทคนิคไม่สำเร็จ</span>' }
+
+  // AI analysis
+  try{
+    const payload = {...r}; delete payload._p;
+    $("#an").textContent = await ask(
+      `วิเคราะห์หลักทรัพย์นี้เป็นภาษาไทย ความยาว 4-6 ประโยค ครอบคลุม: (1) จุดแข็งจากตัวเลข (2) จุดที่ต้องระวัง (3) มุมมองด้านราคา/เทคนิค (4) เหมาะกับนักลงทุนแบบไหน. อ้างอิงเฉพาะตัวเลขที่ให้มา ห้ามเดา ห้ามบอกให้ซื้อหรือขาย ตอบเป็นข้อความล้วนไม่ต้องใส่หัวข้อ`,
+      [payload]);
+  }catch(e){
+    console.warn("analysis failed", e);
+    $("#an").textContent = e.message==="ai_unavailable"
+      ? "ผู้ช่วย AI ใช้งานไม่ได้ชั่วคราว — ข้อมูลตัวเลขและสัญญาณเทคนิคด้านบนยังใช้งานได้ตามปกติ"
+      : "สร้างบทวิเคราะห์ไม่สำเร็จ";
+  }
+}
+
+/* ---------- events ---------- */
+$("#mkt").onclick = e => {
+  const b = e.target.closest("button[data-m]"); if(!b) return;
+  $("#mkt").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); S.market=b.dataset.m; S.preset=null; S.rows=[];
+  buildFilters(); buildChips(); render(); $("#st").textContent=""; $("#ai").innerHTML="";
+  run([]);
+};
+$("#go").onclick = nlSearch;
+$("#q").addEventListener("keydown", e => { if(e.key==="Enter") nlSearch() });
+$("#go2").onclick = () => { S.preset=null; buildChips(); run(readManual()) };
+$("#clr").onclick = () => { $("#fgrid").querySelectorAll("input").forEach(i=>i.value="") };
+$("#wrst").onclick = () => { S.weights={value:20,quality:25,growth:20,momentum:20,tech:15}; save("w",S.weights); buildWeights(); rescore() };
+document.querySelectorAll(".ex").forEach(b=>b.onclick=()=>{ $("#q").value=b.textContent; nlSearch() });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") openDw(false) });
+
+/* ---------- boot ---------- */
+buildFilters(); buildChips(); buildWeights();
+run([]);
+</script>
+</body>
+</html>
