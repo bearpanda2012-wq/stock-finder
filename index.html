@@ -155,6 +155,8 @@ tbody tr.sel{background:var(--acc-bg)}
 .foot{margin-top:14px;color:var(--tx3);font-size:11px;line-height:1.6}
 .foot a{color:var(--tx2)}
 
+@keyframes sp{to{transform:rotate(360deg)}}
+
 .evt{list-style:none;margin:0;padding:0}
 .evt li{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12.5px;align-items:flex-start}
 .evt li:last-child{border-bottom:0}
@@ -211,6 +213,13 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .cols label:hover{border-color:var(--acc)}
 .cols input{accent-color:var(--acc);margin:0}
 .cols label.lock{opacity:.5;cursor:not-allowed}
+/* แถบเลือกภาษาของคำอธิบายบริษัท */
+.trbar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
+.trbar select{padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card);
+  color:var(--tx);font-size:11.5px;outline:none}
+.trbar select:focus{border-color:var(--acc)}
+.trbar #trStatus{font-size:11px}
+.biz{transition:opacity .15s}
 
 /* ---- ปรับป้ายสถานะให้อ่านง่ายในโหมดมืด ---- */
 [data-theme="dark"] .b-sb{background:#12352a;color:#5fd6a4}
@@ -268,6 +277,7 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
       <span class="sp"></span>
       <span class="sub" id="clock"></span>
       <button class="iconbtn" id="reload">↻ โหลดใหม่</button>
+      <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง / มืด"></button>
       <button class="iconbtn" id="opencfg">⚙ ปรับแต่ง</button>
     </div>
   </div>
@@ -360,6 +370,33 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
       <h3>คอลัมน์ที่แสดง</h3>
       <div class="cols" id="cfgCols"></div>
     </div>
+    <div class="sec">
+      <h3>ภาษาของคำอธิบายบริษัท</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:var(--tx2);line-height:1.6">
+        ภาษาเริ่มต้นเวลาเปิดดูหุ้นแต่ละตัว เปลี่ยนเฉพาะตัวใดตัวหนึ่งได้จากช่องเลือกภาษาใต้คำอธิบาย</p>
+      <div class="segs" id="cfgLang" style="flex-wrap:wrap"></div>
+    </div>
+
+    <div class="sec">
+      <h3>คำอธิบายบริษัท</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:var(--tx2);line-height:1.6">
+        ปกติดึงจากวิกิพีเดีย (ไทยก่อน แล้วอังกฤษ) ถ้าอยากได้คำอธิบายทางการของหุ้นสหรัฐฯ
+        ใส่ API key ฟรีของ Alpha Vantage ได้ที่นี่ — จะใช้แหล่งนี้ก่อนเสมอ</p>
+      <input id="cfgAv" type="text" placeholder="Alpha Vantage API key (ไม่ใส่ก็ได้)"
+        style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--tx);outline:none">
+      <div class="note"><a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">ขอ key ฟรีที่นี่</a> · เก็บไว้ในเครื่องคุณเท่านั้น ไม่ถูกส่งไปที่อื่น</div>
+    </div>
+
+    <div class="sec">
+      <h3>Proxy (ไม่ใส่ก็ได้)</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:var(--tx2);line-height:1.6">
+        ใส่เมื่อ<b>ดึงข้อมูล TradingView ไม่ได้</b> (ตารางว่างเปล่าเพราะติด CORS) หรืออยากได้<b>คำอธิบายบริษัทจาก SET</b> สำหรับหุ้นไทย — ต้อง deploy <code>proxy/worker.js</code> บน Cloudflare Workers ก่อน แล้ววาง URL ที่ได้ตรงนี้</p>
+      <input id="cfgProxy" type="text" placeholder="https://tv-proxy.xxx.workers.dev (ไม่ใส่ก็ได้)"
+        style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--tx);outline:none">
+      <div class="note">ถ้าใส่แล้ว การดึงข้อมูล TradingView จะวิ่งผ่าน proxy นี้ด้วย (แก้ปัญหา CORS ไปในตัว) · ต้องโหลดหน้าใหม่</div>
+      <div id="proxyTest" class="note"></div>
+      <button class="mini" id="cfgProxyTest" style="margin-top:6px">ทดสอบการเชื่อมต่อ</button>
+    </div>
     <div class="sec"><button class="mini" id="cfgReset">คืนค่าเริ่มต้นทั้งหมด</button></div>
   </div>
 </aside>
@@ -390,7 +427,11 @@ const isCrypto = () => S.market === "crypto";
    POST https://scanner.tradingview.com/<market>/scan
    ใช้ Content-Type: text/plain เพื่อให้เป็น "simple request" — เลี่ยง CORS preflight
 ============================================================= */
-const TV = "https://scanner.tradingview.com";
+const TV_DIRECT = "https://scanner.tradingview.com";
+const proxyBase = () => String((typeof CFG!=="undefined" && CFG.proxy) || "").replace(/\/+$/,"");
+const TVBASE = () => proxyBase() || TV_DIRECT;
+// ส่งต่อผ่าน proxy สำหรับเว็บที่ไม่เปิด CORS (SET / SETTRADE)
+const viaProxy = u => { const p=proxyBase(); return p ? `${p}/fetch?url=${encodeURIComponent(u)}` : null };
 const OPMAP = { greater:"greater", less:"less", greater_or_equal:"egreater",
   less_or_equal:"eless", equal:"equal", not_equal:"nequal",
   in_range:"in_range", not_in_range:"not_in_range", match:"match" };
@@ -405,7 +446,7 @@ async function tvScan({market, columns, filters, sortBy, order, limit}){
     sort:{sortBy:sortBy, sortOrder:order||"desc"},
     markets:[market]
   };
-  const res = await fetch(`${TV}/${market}/scan?label-product=screener-stock`, {
+  const res = await fetch(`${TVBASE()}/${market}/scan?label-product=screener-stock`, {
     method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(body)
   });
   if(!res.ok) throw new Error("HTTP "+res.status+" จาก TradingView");
@@ -938,7 +979,7 @@ const ACCENTS = [
   ["#b8623a","ดินเผา"], ["#2f6fb8","น้ำเงิน"], ["#2e8b62","เขียว"],
   ["#8a5cc4","ม่วง"], ["#c2436b","ชมพู"], ["#c08a1e","ทอง"], ["#4a4a52","เทาเข้ม"]
 ];
-const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null};
+const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null, avkey:"", proxy:"", lang:"th"};
 let CFG = Object.assign({}, DEF_CFG, load("cfg", {}));
 
 function applyCfg(){
@@ -953,7 +994,25 @@ function applyCfg(){
   root.style.setProperty("--rowpad", CFG.dense==="compact" ? "5px" : CFG.dense==="roomy" ? "13px" : "9px");
   root.style.setProperty("--fs", CFG.font==="s" ? "12.5px" : CFG.font==="l" ? "15px" : "13.5px");
   root.style.setProperty("--r", CFG.radius==="sharp" ? "4px" : CFG.radius==="round" ? "18px" : "12px");
+  const tb = document.getElementById("themeBtn");
+  if(tb){
+    tb.textContent = dark ? "☀ สว่าง" : "☾ มืด";
+    tb.title = dark ? "สลับเป็นโหมดสว่าง" : "สลับเป็นโหมดมืด";
+  }
   save("cfg", CFG);
+}
+// สลับสว่าง/มืดจากปุ่มบนหัว (ถ้าอยู่โหมดตามระบบ จะสลับเป็นตรงข้ามกับที่เห็นอยู่)
+function toggleTheme(){
+  const nowDark = document.documentElement.getAttribute("data-theme") === "dark";
+  CFG.theme = nowDark ? "light" : "dark";
+  applyCfg();
+  if($("#cfgdw").classList.contains("on")) buildCfg();
+  repaint();
+}
+// วาดตาราง/กราฟใหม่ให้สีตรงกับธีมที่เพิ่งเปลี่ยน
+function repaint(){
+  if(S.rows.length) render();
+  if(curRow && $("#dw").classList.contains("on")) detail(curRow);
 }
 function mixHex(a,b,t){ // t = สัดส่วนของ b
   const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
@@ -975,6 +1034,7 @@ function buildCfg(){
   segs($("#cfgDense"), [["compact","กระชับ"],["normal","ปกติ"],["roomy","โปร่ง"]], CFG.dense, v=>CFG.dense=v);
   segs($("#cfgFont"),  [["s","เล็ก"],["m","กลาง"],["l","ใหญ่"]], CFG.font, v=>CFG.font=v);
   segs($("#cfgRadius"),[["sharp","เหลี่ยม"],["md","ปกติ"],["round","มน"]], CFG.radius, v=>CFG.radius=v);
+  segs($("#cfgLang"), LANGS, CFG.lang || "th", v=>CFG.lang=v);
 
   const sw=$("#cfgAccent"); sw.innerHTML="";
   ACCENTS.forEach(([hex,name])=>{
@@ -984,6 +1044,27 @@ function buildCfg(){
     b.onclick=()=>{ CFG.accent=hex; buildCfg(); applyCfg() };
     sw.appendChild(b);
   });
+
+  const av=$("#cfgAv");
+  if(av && document.activeElement !== av){
+    av.value = CFG.avkey || "";
+    av.oninput = e => { CFG.avkey = e.target.value.trim(); save("cfg", CFG) };
+  }
+  const px=$("#cfgProxy");
+  if(px && document.activeElement !== px){
+    px.value = CFG.proxy || "";
+    px.oninput = e => { CFG.proxy = e.target.value.trim().replace(/\/+$/,""); save("cfg", CFG) };
+  }
+  const bt=$("#cfgProxyTest");
+  if(bt) bt.onclick = async ()=>{
+    const out=$("#proxyTest"); const base=proxyBase();
+    if(!base){ out.textContent="ยังไม่ได้ใส่ Proxy URL"; return }
+    out.textContent="กำลังทดสอบ…";
+    const j = await getJson("https://www.set.or.th/api/set/company/PTT/profile?lang=th");
+    out.innerHTML = j
+      ? `<span style="color:var(--up)">เชื่อมต่อ SET ได้ ✓</span> — ได้ข้อมูล ${Object.keys(j).length} ฟิลด์`
+      : `<span style="color:var(--dn)">เชื่อมต่อไม่ได้</span> — ตรวจว่า Worker deploy แล้ว และใส่โดเมนของคุณใน ALLOW`;
+  };
 
   // เลือกคอลัมน์ (สองคอลัมน์แรกล็อกไว้เสมอ)
   const all = isCrypto() ? COLS_CRYPTO : COLS_STOCK;
@@ -1262,6 +1343,14 @@ function render(){
    scanner ไม่ส่งราคารายวัน แต่ส่ง "ผลตอบแทน" แต่ละช่วง
    ย้อนคำนวณได้:  ราคาเมื่อก่อน = ราคาปัจจุบัน / (1 + ผลตอบแทน/100)
 ============================================= */
+const cssVar = n => (getComputedStyle(document.documentElement).getPropertyValue(n)||"").trim();
+const chartCol = () => ({
+  grid:  cssVar("--line2") || "#f0f0ec",
+  tick:  cssVar("--tx3")   || "#9a9a93",
+  label: cssVar("--tx2")   || "#6b6b66",
+  card:  cssVar("--card")  || "#ffffff"
+});
+
 const PERF_POINTS = [["Perf.5Y","5 ปี"],["Perf.3Y","3 ปี"],["Perf.Y","1 ปี"],
   ["Perf.6M","6 เดือน"],["Perf.3M","3 เดือน"],["Perf.1M","1 เดือน"],["Perf.W","1 สัปดาห์"]];
 function pricePoints(r){
@@ -1281,22 +1370,23 @@ function drawPriceChart(canvas, r){
     canvas.parentElement.innerHTML = `<div style="color:var(--tx3);font-size:12px;padding:20px 0;text-align:center">ข้อมูลผลตอบแทนไม่พอสำหรับวาดกราฟ</div>`;
     return null;
   }
+  const C=chartCol();
   const n=pp.labels.length, flat=v=>(nz(v)===null?null:new Array(n).fill(v));
   const up=pp.values[n-1]>=pp.values[0];
   const line=up?"#0d8a5f":"#c8402f", fill=up?"rgba(13,138,95,.10)":"rgba(200,64,47,.10)";
   const ds=[{label:"ราคา", data:pp.values, borderColor:line, backgroundColor:fill, borderWidth:2.2,
-    pointRadius:3.5, pointBackgroundColor:line, pointBorderColor:"#fff", pointBorderWidth:1.5,
+    pointRadius:3.5, pointBackgroundColor:line, pointBorderColor:C.card, pointBorderWidth:1.5,
     tension:.28, fill:true, order:1}];
-  [["SMA 50",r.SMA50,"#8a8a83"],["SMA 200",r.SMA200,"#c2a58f"],
-   ["สูงสุด 52 สัปดาห์",r.price_52_week_high,"#d8d6d0"],["ต่ำสุด 52 สัปดาห์",r.price_52_week_low,"#d8d6d0"]]
+  [["SMA 50",r.SMA50,C.tick],["SMA 200",r.SMA200,cssVar("--acc")||"#c2a58f"],
+   ["สูงสุด 52 สัปดาห์",r.price_52_week_high,C.grid],["ต่ำสุด 52 สัปดาห์",r.price_52_week_low,C.grid]]
    .forEach(([l,v,col])=>{ const d=flat(v); if(!d) return;
      ds.push({label:l, data:d, borderColor:col, borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false, tension:0, order:2}) });
   return new Chart(canvas, {type:"line", data:{labels:pp.labels, datasets:ds},
     options:{responsive:true, maintainAspectRatio:false, interaction:{mode:"index",intersect:false},
-      plugins:{legend:{display:true,position:"bottom",labels:{boxWidth:10,boxHeight:2,font:{size:10},color:"#6b6b66",padding:10}},
+      plugins:{legend:{display:true,position:"bottom",labels:{boxWidth:10,boxHeight:2,font:{size:10},color:C.label,padding:10}},
         tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${num(ctx.parsed.y, ctx.parsed.y<1?5:2)}`}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:10},color:"#9a9a93"}},
-        y:{grid:{color:"#f0f0ec"},ticks:{font:{size:10},color:"#9a9a93",
+      scales:{x:{grid:{display:false},ticks:{font:{size:10},color:C.tick}},
+        y:{grid:{color:C.grid},ticks:{font:{size:10},color:C.tick,
           callback:v=>v<1?v.toFixed(4):v.toLocaleString("th-TH")}}}}});
 }
 // กราฟจริงจาก TradingView (ใช้ได้เฉพาะเวอร์ชันเว็บ)
@@ -1308,7 +1398,7 @@ function tvEmbedUrl(sym){
 }
 
 /* ================= detail ================= */
-let chart=null, pchart=null, curSym=null;
+let chart=null, pchart=null, curSym=null, curRow=null;
 function openDw(on){ $("#dw").classList.toggle("on",on); $("#ov").classList.toggle("on",on) }
 $("#dwx").onclick=()=>openDw(false); $("#ov").onclick=()=>openDw(false);
 
@@ -1337,11 +1427,71 @@ function newsLinks(r){
   L.push(["Google News", `https://news.google.com/search?q=${q}&hl=th&gl=TH`, false]);
   return L.map(([n,u,pri])=>`<a class="lk${pri?" pri":""}" href="${u}" target="_blank" rel="noopener noreferrer">${n}</a>`).join("");
 }
-function buildEvents(r,d){
-  const E=[]; const push=(i,t,x)=>E.push({i,t,x:x||""});
+/* ---------- ตลาดหลักทรัพย์แห่งประเทศไทย (ต้องตั้ง Proxy URL ก่อน) ----------
+   SET/SETTRADE ไม่เปิดให้เรียกข้ามโดเมน จึงต้องผ่าน Cloudflare Worker ใน proxy/
+   โครงสร้าง JSON ของเขาเปลี่ยนได้ จึงอ่านแบบยืดหยุ่น — เดินหา field ที่หน้าตาใช่เอง
+---------------------------------------------------------------------------- */
+const isThaiMkt = r => /^(SET|MAI):/i.test(String(r && r.symbol || ""));
+const thaiTicker = r => String(r.name||"").split(".")[0].toUpperCase();
+
+async function getJson(u){
+  const via = viaProxy(u); if(!via) return null;
+  try{
+    const res = await fetch(via);
+    if(!res.ok) return null;
+    const txt = await res.text();
+    try{ return JSON.parse(txt) }catch(e){ return null }
+  }catch(e){ return null }
+}
+// เดินทั้ง object หา array ของข่าว (มี key ที่หน้าตาเป็นหัวข้อข่าว)
+async function setProfile(r){
+  if(!isThaiMkt(r) || !proxyBase()) return null;
+  const sym = thaiTicker(r);
+  const urls = [
+    `https://www.set.or.th/api/set/company/${sym}/profile?lang=th`,
+    `https://www.set.or.th/api/set/stock/${sym}/company-profile?lang=th`,
+    `https://www.set.or.th/api/set/stock/${sym}/profile?lang=th`
+  ];
+  for(const u of urls){
+    const j = await getJson(u);
+    if(!j || typeof j!=="object") continue;
+    // หาข้อความยาวๆ ที่น่าจะเป็นคำอธิบายธุรกิจ
+    let best="", site="";
+    const walk = (o,depth)=>{
+      if(!o || depth>4) return;
+      if(typeof o==="object"){
+        for(const k of Object.keys(o)){
+          const v=o[k];
+          if(typeof v==="string"){
+            if(/business|nature|profile|description|detail/i.test(k) && v.trim().length>best.length) best=v.trim();
+            if(/website|url|homepage/i.test(k) && /^https?:\/\//.test(v) && !site) site=v.trim();
+          } else walk(v, depth+1);
+        }
+      }
+    };
+    walk(j,0);
+    best = best.replace(/<[^>]+>/g," ").replace(/\s{2,}/g," ").trim();
+    if(best.length >= 40) return {src:"set", title:sym, extract:best, site, url:`https://www.set.or.th/th/market/product/stock/quote/${sym}/company-profile/information`};
+  }
+  return null;
+}
+
+// รายการเหตุการณ์ในอนาคต (ปฏิทิน) — แสดงไว้บนสุดเสมอ
+function futureEvents(r,d){
+  const E=[];
   const ern = d && d.earnings_release_next_trading_date_fq;
   if(fmtDate(ern)){ const n=daysTo(ern);
-    push("📅","ประกาศผลประกอบการไตรมาสถัดไป", fmtDate(ern)+(n>=0&&n<400?` (อีก ${n} วัน)`:"")) }
+    E.push({i:"📅", t:"ประกาศผลประกอบการไตรมาสถัดไป", x: fmtDate(ern)+(n>=0&&n<400?` (อีก ${n} วัน)`:"")}) }
+  return E;
+}
+function renderEvt(E){
+  if(!E.length) return "";
+  return `<ul class="evt">${E.map(e=>
+    `<li><span class="ei">${e.i}</span><span class="et">${escapeHtml(e.t)}</span><span class="ed">${escapeHtml(e.x)}</span></li>`).join("")}</ul>`;
+}
+
+function buildEvents(r,d){
+  const E=[]; const push=(i,t,x)=>E.push({i,t,x:x||""});
   const hi=nz(r.price_52_week_high), lo=nz(r.price_52_week_low), c=nz(r.close);
   if(hi!==null&&c!==null&&hi>0){ const off=(c-hi)/hi*100;
     if(off>-3) push("🔺","ราคาอยู่ใกล้จุดสูงสุดรอบ 52 สัปดาห์",`ห่าง ${off.toFixed(1)}%`);
@@ -1426,35 +1576,79 @@ const NOT_COMPANY = /(ภาพยนตร์|ซีรีส์|ละคร|�
 // คำที่ยืนยันว่า "เป็นบริษัท"
 const IS_COMPANY = /(บริษัท|ธนาคาร|ธุรกิจ|รัฐวิสาหกิจ|ผู้ผลิต|ผู้ให้บริการ|ผู้จำหน่าย|สายการบิน|ห้างสรรพสินค้า|กองทุนรวม|ทรัสต์|กลุ่มทุน|เครือ|compan(y|ies)|corporat(e|ion)|conglomerate|\bbank\b|enterprise|\bfirm\b|manufacturer|retailer|holding|airline|insurer|multinational|subsidiary|business|brand|producer of|provider of|operator of)/i;
 
-function looksLikeCompany(sum){
+// คำสามัญที่ใช้ยืนยันตัวตนบริษัทไม่ได้ (เจอในบทความบริษัทอื่นเต็มไปหมด)
+const GENERIC = new Set(["bank","thai","thailand","asia","asian","international","global","national","group",
+  "world","american","america","china","chinese","japan","tech","technology","technologies","digital","energy",
+  "power","capital","finance","financial","industries","industrial","service","services","system","systems",
+  "solution","solutions","product","products","electric","electronics","media","health","medical","property",
+  "land","real","estate","development","trading","transport","food","hotel","resort","the","and"]);
+
+// ดึงคำเฉพาะที่ใช้ระบุตัวบริษัท เช่น "Quantum Corporation" → ["Quantum"]
+function coreTokens(r){
+  const cleaned = String(r.description||"")
+    .replace(/\bShs?\b[\s\S]*$/i," ")
+    .replace(/Thailand\s+Deposit\w*[\s\S]*$/i," ")
+    .replace(/\b(Public|Company|Companies|Co|Ltd|Limited|Inc|Incorporated|Corp|Corporation|PCL|Plc|Group|Holdings?|Holding|Bhd|SA|NV|AG|SE|PJSC|JSC|Units?|Repr|Sh)\b\.?/ig," ")
+    .replace(/[.,()\/]/g," ").replace(/\s{2,}/g," ").trim();
+  const toks = cleaned.split(" ").filter(t=>t.length>=3);
+  const strong = toks.filter(t=>!GENERIC.has(t.toLowerCase()));
+  const tkr = String(r.name||"").replace(/USD$/,"");
+  return {strong, all: toks, tkr};
+}
+// บทความต้องพูดถึงบริษัทตัวนี้จริงๆ ไม่ใช่แค่ "เป็นบริษัท" เฉยๆ
+function matchesCompany(sum, r){
+  const hay = (String(sum.title||"") + " " + String(sum.description||"") + " " + String(sum.extract||"").slice(0,600)).toLowerCase();
+  const {strong, all, tkr} = coreTokens(r);
+  if(tkr && tkr.length>=3 && new RegExp("\\b"+tkr.toLowerCase().replace(/[^a-z0-9]/g,"")+"\\b").test(hay.replace(/[^a-z0-9\s]/g," "))) return true;
+  const need = strong.length ? strong : all;
+  if(!need.length) return false;
+  return need.some(t => hay.includes(t.toLowerCase()));
+}
+function looksLikeCompany(sum, r){
   if(!sum || !sum.extract || sum.type === "disambiguation") return false;
   const desc = String(sum.description||"");
   const head = String(sum.extract).slice(0,320);
   if(NOT_COMPANY.test(desc)) return false;          // คำบรรยายสั้นบอกชัดว่าไม่ใช่บริษัท
-  if(IS_COMPANY.test(desc)) return true;            // คำบรรยายสั้นบอกว่าเป็นบริษัท
-  if(NOT_COMPANY.test(head)) return false;
-  return IS_COMPANY.test(head);                     // ไม่งั้นดูจากย่อหน้าแรก
+  if(NOT_COMPANY.test(head) && !IS_COMPANY.test(desc)) return false;
+  const isCo = IS_COMPANY.test(desc) || IS_COMPANY.test(head);
+  if(!isCo) return false;
+  if(r && !matchesCompany(sum, r)) return false;    // ต้องเป็น "บริษัทตัวนี้" ไม่ใช่บริษัทอื่น
+  return true;
 }
 
 async function wikiSummary(lang, title){
   return fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/` +
     encodeURIComponent(String(title).replace(/ /g,"_"))).then(x=>x.ok?x.json():null).catch(()=>null);
 }
-async function wikiLookup(lang, q){
+async function wikiLookup(lang, q, r){
   const api = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=` +
     encodeURIComponent(q) + `&srlimit=4&format=json&origin=*`;
   const s = await fetch(api).then(x=>x.ok?x.json():null).catch(()=>null);
   const hits = (s && s.query && s.query.search) || [];
   for(const hit of hits.slice(0,3)){
     const sum = await wikiSummary(lang, hit.title);
-    if(!looksLikeCompany(sum)) continue;            // ข้ามบทความที่ไม่ใช่บริษัท
+    if(!looksLikeCompany(sum, r)) continue;         // ข้ามบทความที่ไม่ใช่บริษัทนี้
     return {
-      lang, title: sum.title, extract: sum.extract,
+      src: "wikipedia", lang, title: sum.title, extract: sum.extract,
       url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page) || "",
       qid: sum.wikibase_item || ""
     };
   }
   return null;
+}
+
+// แหล่งข้อมูลบริษัทอย่างเป็นทางการ (ต้องใส่ API key ฟรีในหน้าปรับแต่ง)
+async function alphaOverview(r){
+  const key = (CFG.avkey||"").trim();
+  if(!key || isCrypto()) return null;
+  const tkr = String(r.name||"").replace(/[^A-Za-z0-9.\-]/g,"");
+  if(!tkr) return null;
+  try{
+    const j = await fetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${encodeURIComponent(tkr)}&apikey=${encodeURIComponent(key)}`)
+      .then(x=>x.ok?x.json():null);
+    if(!j || !j.Description || j.Description.length < 40) return null;
+    return {src:"alphavantage", title:j.Name||tkr, extract:j.Description, site:j.OfficialSite||"", url:""};
+  }catch(e){ return null }
 }
 async function wikidataSite(qid){
   if(!qid) return "";
@@ -1465,16 +1659,124 @@ async function wikidataSite(qid){
     return (c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value) || "";
   }catch(e){ return "" }
 }
+/* ---------- แปลคำอธิบายบริษัทเป็นไทย ----------
+   ใช้บริการแปลที่เรียกได้จากเบราว์เซอร์ตรงๆ ไม่ต้องใช้ API key
+   ถ้าแปลไม่สำเร็จจะคงต้นฉบับไว้ ไม่ทำให้หน้าค้าง
+---------------------------------------------- */
+const isThaiText = s => {
+  const t = String(s||""); if(!t) return false;
+  const th = (t.match(/[฀-๿]/g)||[]).length;
+  return th > t.replace(/\s/g,"").length * 0.2;
+};
+// ตัดข้อความเป็นท่อนตามประโยค ไม่ให้เกินขนาดที่บริการรับไหว
+function chunkText(text, max){
+  const parts = String(text).split(/(?<=[.!?])\s+/);
+  const out = []; let cur = "";
+  for(const p of parts){
+    if((cur + " " + p).trim().length > max){ if(cur) out.push(cur.trim()); cur = p }
+    else cur += (cur ? " " : "") + p;
+  }
+  if(cur.trim()) out.push(cur.trim());
+  return out.length ? out : [String(text).slice(0, max)];
+}
+async function getJsonTimed(url, ms){
+  const ctl = new AbortController();
+  const timer = setTimeout(()=>ctl.abort(), ms||5000);
+  try{
+    const res = await fetch(url, {signal: ctl.signal});
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null }
+  finally{ clearTimeout(timer) }
+}
+// ภาษาที่เลือกแปลได้
+const LANGS = [
+  ["src","ต้นฉบับ"], ["th","ไทย"], ["en","English"], ["zh-CN","中文"],
+  ["ja","日本語"], ["ko","한국어"], ["de","Deutsch"], ["fr","Français"], ["es","Español"]
+];
+const LANGNAME = Object.fromEntries(LANGS);
+
+async function translateTo(text, lang){
+  if(!text || !lang || lang === "src") return null;
+  // 1) Google Translate (endpoint สาธารณะ ไม่ต้องมี key)
+  try{
+    const out = [];
+    for(const c of chunkText(text, 1500)){
+      const u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(c)}`;
+      const j = await getJsonTimed(u, 6000);
+      if(!j || !Array.isArray(j[0])) throw new Error("bad shape");
+      out.push(j[0].map(x=>x && x[0] ? x[0] : "").join(""));
+    }
+    const s = out.join(" ").trim();
+    if(s) return s;
+  }catch(e){ /* ลองตัวถัดไป */ }
+  // 2) MyMemory (สำรอง — รองรับข้อความสั้นกว่า)
+  try{
+    const pair = "en|" + String(lang).split("-")[0];
+    const out = [];
+    for(const c of chunkText(text, 450).slice(0,4)){
+      const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(c)}&langpair=${encodeURIComponent(pair)}`;
+      const j = await getJsonTimed(u, 6000);
+      const t = j && j.responseData && j.responseData.translatedText;
+      if(!t) throw new Error("bad");
+      out.push(String(t));
+    }
+    const s = out.join(" ").trim();
+    if(s) return s;
+  }catch(e){}
+  return null;
+}
+
+/* ตัวเลือกภาษาใต้กล่องคำอธิบาย — เปลี่ยนแล้วแปลให้ทันที */
+function mountTranslator(sym, original){
+  const body = document.getElementById("bizbody");
+  const sel  = document.getElementById("bizLang");
+  const st   = document.getElementById("trStatus");
+  if(!body || !sel) return;
+
+  const cacheKey = l => `tr_${sym}_${l}`;
+  const setStatus = t => { if(st) st.textContent = t || "" };
+
+  async function apply(lang){
+    if(lang === "src"){ body.textContent = original; setStatus(""); return }
+    let cached = null;
+    try{ cached = sessionStorage.getItem(cacheKey(lang)) }catch(e){}
+    if(cached){ body.textContent = cached; setStatus("แปลโดย Google Translate"); return }
+    setStatus("กำลังแปล…");
+    body.style.opacity = ".55";
+    const out = await translateTo(original, lang);
+    body.style.opacity = "";
+    if(curSym !== sym) return;
+    if(out){
+      try{ sessionStorage.setItem(cacheKey(lang), out) }catch(e){}
+      body.textContent = out;
+      setStatus("แปลโดย Google Translate");
+    }else{
+      body.textContent = original;
+      setStatus("แปลไม่สำเร็จ — แสดงต้นฉบับ");
+    }
+  }
+
+  sel.onchange = e => { CFG.lang = e.target.value; save("cfg", CFG); apply(CFG.lang) };
+  const want = CFG.lang || "th";
+  sel.value = want;
+  // ถ้าต้นฉบับเป็นภาษาที่ต้องการอยู่แล้ว ไม่ต้องแปล
+  if(!(want === "th" && isThaiText(original)) && want !== "src") apply(want);
+}
+
 async function loadBizDesc(r, elId){
   const box = document.getElementById(elId); if(!box) return;
-  const cands = nameCandidates(r);
-  let hit = null;
-  for(const lang of ["th","en"]){
-    for(const q of cands){
-      hit = await wikiLookup(lang, q);
+  let hit = await setProfile(r);                   // 1) หุ้นไทย → ตลาดหลักทรัพย์ฯ (ต้องมี proxy)
+  if(!hit) hit = await alphaOverview(r);           // 2) ข้อมูลทางการ (ถ้าใส่ API key ไว้)
+  if(!hit){                                        // 3) วิกิพีเดีย ไทย → อังกฤษ
+    const cands = nameCandidates(r);
+    for(const lang of ["th","en"]){
+      for(const q of cands){
+        hit = await wikiLookup(lang, q, r);
+        if(hit) break;
+      }
       if(hit) break;
     }
-    if(hit) break;
   }
   if(curSym !== r.symbol) return;
   if(!hit){
@@ -1483,13 +1785,26 @@ async function loadBizDesc(r, elId){
     if(wrap) wrap.remove(); else box.remove();
     return;
   }
-  const site = await wikidataSite(hit.qid);
+  const site = hit.site || await wikidataSite(hit.qid);
   if(curSym !== r.symbol) return;
-  box.innerHTML = `<div class="biz">${escapeHtml(hit.extract)}</div>
+  const tkr = String(r.name||"").replace(/USD$/,"");
+  const srcLabel = hit.src === "set" ? "ตลาดหลักทรัพย์แห่งประเทศไทย (SET)"
+                 : hit.src === "alphavantage" ? "ข้อมูลบริษัทอย่างเป็นทางการ"
+                 : `วิกิพีเดีย${hit.lang==="en"?" (อังกฤษ)":""} · ${hit.title}`;
+  box.innerHTML = `<div class="biz" id="bizbody">${escapeHtml(hit.extract)}</div>
+    <div class="trbar">
+      <label for="bizLang">ภาษา</label>
+      <select id="bizLang">${LANGS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select>
+      <span id="trStatus" class="mut"></span>
+    </div>
+    <div class="note">ที่มา: ${escapeHtml(srcLabel)}</div>
     <div class="links" style="margin-top:9px">
       ${site ? `<a class="lk pri" href="${escapeHtml(site)}" target="_blank" rel="noopener noreferrer">เว็บไซต์ทางการ</a>` : ""}
-      <a class="lk" href="${escapeHtml(hit.url)}" target="_blank" rel="noopener noreferrer">อ่านต่อที่วิกิพีเดีย${hit.lang==="en"?" (อังกฤษ)":""}</a>
+      ${hit.url ? `<a class="lk" href="${escapeHtml(hit.url)}" target="_blank" rel="noopener noreferrer">อ่านต่อที่วิกิพีเดีย</a>` : ""}
+      <a class="lk" href="https://th.investing.com/search/?q=${encodeURIComponent(tkr)}" target="_blank" rel="noopener noreferrer">Investing.com</a>
+      <a class="lk" href="https://www.google.com/search?q=${encodeURIComponent((r.description||tkr)+" บริษัท")}" target="_blank" rel="noopener noreferrer">ค้นหา Google</a>
     </div>`;
+  mountTranslator(r.symbol, hit.extract);
 }
 
 /* ---------- สรุปคุณภาพกิจการแบบภาพรวม ---------- */
@@ -1625,7 +1940,7 @@ function buildReasons(r){
 }
 
 async function detail(r){
-  openDw(true); curSym = r.symbol;
+  openDw(true); curSym = r.symbol; curRow = r;
   $("#dwt").textContent = (r.name||r.symbol||"").replace(/USD$/,"");
   $("#dws").textContent = r.description || r.symbol || "";
   const p = r._p || {};
@@ -1676,6 +1991,7 @@ async function detail(r){
     </div>
     <div class="sec"><h3>สัญญาณเทคนิคหลายกรอบเวลา</h3><div class="tf" id="tfz"><span style="color:var(--tx3);font-size:12px">กำลังโหลด…</span></div></div>
     <div class="sec"><h3>ข่าวและเหตุการณ์ล่าสุด</h3>
+      <div id="evtop"></div>
       <div id="evz">${buildEvents(r,null)}</div>
       <div class="links">${newsLinks(r)}</div>
       <div class="note">เหตุการณ์สรุปจากข้อมูลราคา/ปริมาณ/ปฏิทินงบจริง · พาดหัวข่าวเปิดอ่านได้จากลิงก์</div>
@@ -1718,10 +2034,12 @@ async function detail(r){
   if(chart){ chart.destroy(); chart=null }
   if(labels.length>=3 && window.Chart){
     chart = new Chart($("#rad"), {type:"radar", data:{labels, datasets:[{data:vals,
-      backgroundColor:"rgba(184,98,58,.18)", borderColor:"#b8623a", pointBackgroundColor:"#b8623a", borderWidth:2, pointRadius:3}]},
+      backgroundColor:(cssVar("--acc")||"#b8623a")+"2e", borderColor:cssVar("--acc")||"#b8623a",
+      pointBackgroundColor:cssVar("--acc")||"#b8623a", borderWidth:2, pointRadius:3, fill:true}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-        scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:9},color:"#9a9a93",backdropColor:"transparent"},
-          grid:{color:"#eceae6"},angleLines:{color:"#eceae6"},pointLabels:{font:{size:11},color:"#6b6b66"}}}}});
+        scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:9},color:chartCol().tick,backdropColor:"transparent"},
+          grid:{color:chartCol().grid},angleLines:{color:chartCol().grid},
+          pointLabels:{font:{size:11},color:chartCol().label}}}}});
   } else { const c=$("#rad"); if(c) c.parentElement.innerHTML = `<div style="color:var(--tx3);font-size:12px">ข้อมูลไม่พอสำหรับกราฟองค์ประกอบ</div>` }
 
   // ดึงรายละเอียด + สัญญาณหลายกรอบเวลาในคำขอเดียว
@@ -1740,6 +2058,7 @@ async function detail(r){
         return `<div class="tfc"><div class="t">${l}</div><span class="badge ${b.c}">${b.t}</span></div>` }).join("") : "";
       $("#tfz").innerHTML = z || '<span style="color:var(--tx3);font-size:12px">ไม่มีข้อมูล</span>';
     }
+    if($("#evtop")) $("#evtop").innerHTML = renderEvt(futureEvents(r,d));
     if($("#evz")) $("#evz").innerHTML = buildEvents(r,d);
     if($("#anz")) $("#anz").innerHTML = buildAnalyst(r,d);
     if($("#coz")){ $("#coz").innerHTML = buildCompany(r,d); loadBizDesc(r, "bizdesc") }
@@ -1793,12 +2112,13 @@ $("#wrst").onclick = () => { S.weights={value:20,quality:25,growth:20,momentum:2
 $("#reload").onclick = () => { S.preset=null; buildChips(); run(readManual()) };
 document.querySelectorAll(".ex").forEach(b=>b.onclick=()=>{ $("#q").value=b.textContent; doSearch() });
 
+$("#themeBtn").onclick = toggleTheme;
 $("#opencfg").onclick = ()=>openCfg(true);
 $("#cfgx").onclick = ()=>openCfg(false);
 $("#cfgov").onclick = ()=>openCfg(false);
 $("#cfgReset").onclick = ()=>{ CFG = Object.assign({}, DEF_CFG); applyCfg(); buildCfg(); render() };
 if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", ()=>{ if(CFG.theme==="auto") applyCfg() });
+  .addEventListener("change", ()=>{ if(CFG.theme==="auto"){ applyCfg(); repaint() } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false) } });
 
 // นาฬิกาบนหัวเรื่อง
