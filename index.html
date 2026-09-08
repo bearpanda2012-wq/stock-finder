@@ -7,6 +7,18 @@
 <meta name="description" content="สกรีนเนอร์หุ้นไทย หุ้นสหรัฐฯ และคริปโต พร้อมระบบให้คะแนน ข้อมูลสดจาก TradingView">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ===== ตั้งค่า Supabase =====
+   ใส่ค่าจาก Supabase Dashboard → Project Settings → API
+   anon key เปิดเผยได้ ปลอดภัยเพราะมี Row Level Security คุมอยู่
+   ถ้าเว้นว่างไว้ แอปจะทำงานปกติแต่ไม่มีระบบสมาชิก                        */
+window.SF_SUPABASE = {
+  url:     "https://imfoelpjryfhiqnxzvcx.supabase.co",
+  anonKey: "sb_publishable_m6vWrk4Gl3ih7CdgqV_Vnw_8Qwmc6Jf",
+  upgradeUrl: ""    // ลิงก์หน้าชำระเงิน เช่น Stripe Payment Link (ใส่ทีหลังได้)
+};
+</script>
 <style>
 :root{
   color-scheme: light;
@@ -214,6 +226,65 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .cols input{accent-color:var(--acc);margin:0}
 .cols label.lock{opacity:.5;cursor:not-allowed}
 /* แถบเลือกภาษาของคำอธิบายบริษัท */
+/* ---- ระบบสมาชิก ---- */
+.usermenu{position:relative}
+.avatar{width:20px;height:20px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;
+  align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:6px;flex-shrink:0}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--sh2);min-width:230px;padding:5px;display:none;z-index:60}
+.menu.on{display:block}
+.menu .mhead{padding:9px 11px;border-bottom:1px solid var(--line2);margin-bottom:4px;
+  display:flex;flex-direction:column;gap:4px}
+.menu .mhead b{font-size:12px;font-weight:600;word-break:break-all}
+.menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 11px;
+  border-radius:7px;font-size:12.5px;color:var(--tx2)}
+.menu button:hover{background:var(--sunk);color:var(--tx)}
+.tier{display:inline-block;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;
+  background:var(--sunk);color:var(--tx2);width:fit-content;letter-spacing:.3px}
+.tier.pro{background:var(--acc);color:#fff}
+
+.modal{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:20px}
+.modal.on{display:flex}
+.mbox{background:var(--card);border:1px solid var(--line);border-radius:14px;width:min(400px,100%);
+  box-shadow:var(--sh2);overflow:hidden}
+.mtop{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line2)}
+.mtop h2{margin:0;font-size:17px;font-weight:750}
+.mbody{padding:16px 18px 18px}
+.fld{display:block;margin-bottom:11px}
+.fld span{display:block;font-size:11.5px;color:var(--tx2);margin-bottom:4px;font-weight:500}
+.fld input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+  background:var(--card);color:var(--tx);outline:none;font-size:13px}
+.fld input:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-bg)}
+.amsg{font-size:12px;line-height:1.55;margin:4px 0 10px;min-height:16px}
+.amsg.err{color:var(--dn)} .amsg.ok{color:var(--up)}
+.arow{display:flex;align-items:center;gap:8px;margin-top:11px;font-size:11.5px}
+.arow .sp{flex:1}
+.linkbtn{border:0;background:transparent;color:var(--tx2);font-size:11.5px;text-decoration:underline;padding:0}
+.linkbtn:hover{color:var(--acc)}
+.sp1{font-size:12.5px;line-height:1.65;color:var(--tx2);margin:0 0 12px}
+.steps{margin:0 0 12px;padding-left:20px;font-size:12.5px;line-height:1.8;color:var(--tx)}
+.steps li{margin-bottom:7px}
+.steps a{color:var(--acc)}
+.steps code,.sp1 code{background:var(--sunk);border:1px solid var(--line2);border-radius:4px;
+  padding:1px 5px;font-size:11.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.steps pre{background:var(--sunk);border:1px solid var(--line2);border-radius:7px;padding:9px 11px;
+  margin:6px 0;font-size:11px;line-height:1.6;overflow-x:auto;
+  font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--tx)}
+
+.wlrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2)}
+.wlrow .s{font-weight:650;min-width:78px}
+.wlrow .n{flex:1;color:var(--tx2);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wlrow .del{border:0;background:transparent;color:var(--tx3);font-size:15px;padding:2px 6px;border-radius:6px}
+.wlrow .del:hover{background:var(--sunk);color:var(--dn)}
+.star{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 12px;
+  font-size:12px;color:var(--tx2);cursor:pointer}
+.star:hover{border-color:var(--acc);color:var(--acc)}
+.star.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc);font-weight:600}
+.gate{background:var(--acc-bg);border:1px solid #ecd9cd;border-radius:var(--r);padding:11px 14px;
+  font-size:12.5px;line-height:1.6;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gate .sp{flex:1}
+[data-theme="dark"] .gate{border-color:#3d3229}
+
 .trbar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
 .trbar select{padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card);
   color:var(--tx);font-size:11.5px;outline:none}
@@ -279,6 +350,17 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
       <button class="iconbtn" id="reload">↻ โหลดใหม่</button>
       <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง / มืด"></button>
       <button class="iconbtn" id="opencfg">⚙ ปรับแต่ง</button>
+      <button class="iconbtn" id="authBtn">เข้าสู่ระบบ</button>
+      <div class="usermenu" id="userBox" style="display:none">
+        <button class="iconbtn" id="userBtn"><span class="avatar" id="avatar"></span><span id="userLabel"></span></button>
+        <div class="menu" id="userMenu">
+          <div class="mhead"><b id="mEmail"></b><span id="mTier" class="tier"></span></div>
+          <button data-a="watch">⭐ รายการเฝ้าดู</button>
+          <button data-a="sync">☁ ซิงก์การตั้งค่าขึ้นคลาวด์</button>
+          <button data-a="upgrade" id="mUpgrade">✦ อัปเกรดเป็น Pro</button>
+          <button data-a="logout">ออกจากระบบ</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -353,6 +435,50 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
     ข้อมูลดึงสดจาก TradingView public scanner ทุกครั้งที่โหลดหน้า · ไม่มีเซิร์ฟเวอร์ ไม่เก็บข้อมูลผู้ใช้
   </div>
 </div>
+
+<!-- กล่องเข้าสู่ระบบ -->
+<div class="ov" id="authov"></div>
+<div class="modal" id="authModal">
+  <div class="mbox">
+    <div class="mtop">
+      <h2 id="authTitle">เข้าสู่ระบบ</h2>
+      <button class="x" id="authX">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="authSetup" style="display:none"></div>
+      <div id="authForm">
+      <div class="segs" id="authTabs" style="margin-bottom:14px">
+        <button data-t="in" class="on">เข้าสู่ระบบ</button>
+        <button data-t="up">สมัครสมาชิก</button>
+        <button data-t="magic">ลิงก์ทางอีเมล</button>
+      </div>
+      <label class="fld"><span>อีเมล</span>
+        <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com"></label>
+      <label class="fld" id="pwWrap"><span>รหัสผ่าน</span>
+        <input type="password" id="authPw" autocomplete="current-password" placeholder="อย่างน้อย 6 ตัวอักษร"></label>
+      <label class="fld" id="nameWrap" style="display:none"><span>ชื่อที่แสดง</span>
+        <input type="text" id="authName" placeholder="ไม่ใส่ก็ได้"></label>
+      <div id="authMsg" class="amsg"></div>
+      <button class="btn pri" id="authGo" style="width:100%;padding:11px;margin-top:4px">เข้าสู่ระบบ</button>
+      <div class="arow">
+        <button class="linkbtn" id="authForgot">ลืมรหัสผ่าน</button>
+        <span class="sp"></span>
+        <span class="mut" id="authHint"></span>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- รายการเฝ้าดู -->
+<div class="ov" id="wlov"></div>
+<aside class="dw" id="wldw">
+  <div class="dwh">
+    <div><h2>รายการเฝ้าดู</h2><p id="wlCount">—</p></div>
+    <button class="x" id="wlX">✕</button>
+  </div>
+  <div class="dwb" id="wlBody"></div>
+</aside>
 
 <div class="ov" id="cfgov"></div>
 <aside class="dw" id="cfgdw">
@@ -924,7 +1050,8 @@ async function run(filters, note){
   const st=$("#st"); $("#err").innerHTML=""; $("#ai").innerHTML="";
   st.innerHTML='<span class="dot"></span> กำลังดึงข้อมูลสดจาก TradingView…';
   $("#go").disabled=$("#go2").disabled=true;
-  const limit = +$("#lim").value;
+  let limit = +$("#lim").value;
+  if(authOn()) limit = Math.min(limit, limits().rows);
   const tech = readTech(), sec = sectorFilter();
   filters = [...(filters||[]), ...tech, ...sec];
   try{
@@ -948,6 +1075,7 @@ async function run(filters, note){
       + (sec.length ? ` · <span style="color:var(--acc)">กลุ่ม ${escapeHtml(THSEC[S.sector]||S.sector)}</span>` : "")
       + (tech.length ? ` · <span style="color:var(--acc)">ตัวกรองเทคนิค ${tech.length} เงื่อนไข</span>` : "");
     if(note) $("#ai").innerHTML = `<div class="ainote"><span class="tag">คำค้น</span>${escapeHtml(note)}</div>`;
+    $("#ai").innerHTML = gateBanner() + $("#ai").innerHTML;
     render();
     if(S.rows.length) $("#ai").innerHTML += overview();
   }catch(e){ console.error(e); st.textContent=""; showError(e);
@@ -972,6 +1100,248 @@ function overview(){
   const hot = R.filter(r=>nz(r.RSI)!==null && r.RSI>70).length;
   const warn = hot ? ` · มี ${hot} ตัวที่ RSI เกิน 70 (ซื้อมากเกินไป) ควรระวังการไล่ราคา` : "";
   return `<div class="ainote"><span class="tag">สรุป</span>${escapeHtml(parts.join(" · ") + warn)}</div>`;
+}
+
+/* ================= ระบบสมาชิก (Supabase) =================
+   ถ้าไม่ได้ตั้งค่า SF_SUPABASE ไว้ ทุกอย่างจะข้ามไปเงียบๆ แอปยังใช้ได้ปกติ
+========================================================= */
+const TIERS = {
+  free:     {label:"ฟรี",      rows:30,  markets:["thailand"],                    watch:10,  screens:2},
+  pro:      {label:"PRO",      rows:200, markets:["thailand","america","crypto"], watch:200, screens:50},
+  lifetime: {label:"LIFETIME", rows:200, markets:["thailand","america","crypto"], watch:999, screens:999}
+};
+const AUTH = { sb:null, user:null, profile:null, watch:new Map() };
+const tierOf  = () => (AUTH.profile && TIERS[AUTH.profile.tier]) ? AUTH.profile.tier : "free";
+const limits  = () => TIERS[tierOf()];
+const authOn  = () => !!AUTH.sb;
+const signedIn= () => !!AUTH.user;
+
+function initAuth(){
+  const c = window.SF_SUPABASE || {};
+  if(!c.url || !c.anonKey){ AUTH.needSetup = "ยังไม่ได้ใส่ค่า Supabase"; paintAuth(); return }
+  if(!window.supabase){ AUTH.needSetup = "โหลดไลบรารี Supabase ไม่สำเร็จ — ตรวจการเชื่อมต่ออินเทอร์เน็ต"; paintAuth(); return }
+  try{
+    AUTH.sb = window.supabase.createClient(c.url, c.anonKey, {auth:{persistSession:true, autoRefreshToken:true}});
+  }catch(e){ AUTH.needSetup = "ค่า Supabase ไม่ถูกต้อง: " + (e.message||e); paintAuth(); return }
+  AUTH.sb.auth.onAuthStateChange((_e, session)=>{ onSession(session) });
+  AUTH.sb.auth.getSession().then(({data})=>onSession(data && data.session));
+}
+
+async function onSession(session){
+  AUTH.user = (session && session.user) || null;
+  if(AUTH.user){
+    await loadProfile();
+    await loadWatchlist();
+    await pullCloudCfg();
+  }else{
+    AUTH.profile = null; AUTH.watch.clear();
+  }
+  paintAuth();
+  render();
+}
+
+async function loadProfile(){
+  try{
+    const {data} = await AUTH.sb.from("profiles").select("*").eq("id", AUTH.user.id).maybeSingle();
+    AUTH.profile = data || {tier:"free", email:AUTH.user.email};
+    // หมดอายุแล้วให้ถือเป็นฟรี
+    if(AUTH.profile.tier_expires_at && new Date(AUTH.profile.tier_expires_at) < new Date())
+      AUTH.profile.tier = "free";
+  }catch(e){ AUTH.profile = {tier:"free", email:AUTH.user.email} }
+}
+
+function paintAuth(){
+  const btn=$("#authBtn"), box=$("#userBox");
+  if(!authOn()){ if(btn) btn.style.display=""; if(box) box.style.display="none"; return }
+  if(!signedIn()){ btn.style.display=""; box.style.display="none"; return }
+  btn.style.display="none"; box.style.display="";
+  const name = (AUTH.profile && AUTH.profile.display_name) || (AUTH.user.email||"").split("@")[0];
+  $("#avatar").textContent = (name[0]||"?").toUpperCase();
+  $("#userLabel").textContent = name;
+  $("#mEmail").textContent = AUTH.user.email || "";
+  const t = tierOf();
+  const tv = $("#mTier");
+  tv.textContent = TIERS[t].label;
+  tv.className = "tier" + (t!=="free" ? " pro" : "");
+  const up = $("#mUpgrade");
+  const url = (window.SF_SUPABASE||{}).upgradeUrl;
+  up.style.display = (t==="free" && url) ? "" : "none";
+}
+
+/* ---------- กล่องเข้าสู่ระบบ ---------- */
+let authMode = "in";
+function openAuth(on){
+  $("#authModal").classList.toggle("on", on);
+  $("#authov").classList.toggle("on", on);
+  if(!on) return;
+  if(!authOn()){ showSetup(); return }
+  $("#authForm").style.display = ""; $("#authSetup").style.display = "none";
+  setAuthMode("in"); setTimeout(()=>$("#authEmail").focus(), 60);
+}
+function showSetup(){
+  $("#authTitle").textContent = "ยังไม่ได้เปิดระบบสมาชิก";
+  $("#authForm").style.display = "none";
+  const box = $("#authSetup");
+  box.style.display = "";
+  box.innerHTML = `
+    <p class="sp1">${escapeHtml(AUTH.needSetup || "ยังไม่ได้ตั้งค่า")} — ทำ 3 ขั้นตอนนี้แล้วระบบสมาชิกจะใช้ได้ทันที</p>
+    <ol class="steps">
+      <li>สร้างโปรเจกต์ฟรีที่ <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">supabase.com</a></li>
+      <li>เปิด <b>SQL Editor</b> วางไฟล์ <code>supabase/schema.sql</code> ทั้งไฟล์ แล้วกด Run</li>
+      <li>เปิด <code>index.html</code> หาบรรทัด <code>window.SF_SUPABASE</code> (อยู่บนสุดของไฟล์) แล้วใส่ค่า:
+        <pre>url:     "https://xxxxx.supabase.co"
+anonKey: "eyJhbGciOi..."</pre>
+        เอาค่ามาจาก <b>Project Settings → API</b></li>
+    </ol>
+    <p class="sp1 mut">anonKey เปิดเผยได้ ปลอดภัยเพราะฐานข้อมูลมี Row Level Security คุมอยู่ · รายละเอียดทั้งหมดอยู่ใน README หัวข้อ “ระบบสมาชิก”</p>
+    <button class="btn" id="setupClose" style="width:100%;padding:10px;margin-top:6px">เข้าใจแล้ว</button>`;
+  const b=$("#setupClose"); if(b) b.onclick=()=>openAuth(false);
+}
+function setAuthMode(m){
+  authMode = m;
+  document.querySelectorAll("#authTabs button").forEach(b=>b.classList.toggle("on", b.dataset.t===m));
+  $("#pwWrap").style.display   = m==="magic" ? "none" : "";
+  $("#nameWrap").style.display = m==="up" ? "" : "none";
+  $("#authGo").textContent = m==="in" ? "เข้าสู่ระบบ" : m==="up" ? "สมัครสมาชิก" : "ส่งลิงก์เข้าอีเมล";
+  $("#authTitle").textContent = m==="up" ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
+  $("#authForgot").style.display = m==="in" ? "" : "none";
+  $("#authHint").textContent = m==="magic" ? "ไม่ต้องใช้รหัสผ่าน" : "";
+  msg("");
+}
+function msg(text, kind){
+  const el=$("#authMsg"); if(!el) return;
+  el.textContent = text || "";
+  el.className = "amsg" + (kind ? " "+kind : "");
+}
+const AUTH_ERR = {
+  "Invalid login credentials":"อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+  "User already registered":"อีเมลนี้สมัครไว้แล้ว — ลองเข้าสู่ระบบแทน",
+  "Email not confirmed":"ยังไม่ได้ยืนยันอีเมล กดลิงก์ในกล่องจดหมายก่อน",
+  "Password should be at least 6 characters":"รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร"
+};
+const thErr = e => AUTH_ERR[String(e && e.message || e)] || String(e && e.message || e);
+
+async function doAuth(){
+  const email = $("#authEmail").value.trim();
+  const pw    = $("#authPw").value;
+  if(!email){ return msg("กรอกอีเมลก่อน","err") }
+  const go=$("#authGo"); go.disabled=true; msg("กำลังดำเนินการ…");
+  try{
+    if(authMode==="magic"){
+      const {error} = await AUTH.sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.href}});
+      if(error) throw error;
+      msg("ส่งลิงก์ไปที่อีเมลแล้ว เปิดลิงก์เพื่อเข้าสู่ระบบ","ok");
+    }else if(authMode==="up"){
+      if(pw.length < 6) throw new Error("Password should be at least 6 characters");
+      const {data, error} = await AUTH.sb.auth.signUp({
+        email, password: pw,
+        options:{ data:{display_name: $("#authName").value.trim() || null}, emailRedirectTo: location.href }
+      });
+      if(error) throw error;
+      if(data && data.session){ openAuth(false) }
+      else msg("สมัครแล้ว — เปิดอีเมลเพื่อยืนยันตัวตนก่อนเข้าใช้งาน","ok");
+    }else{
+      const {error} = await AUTH.sb.auth.signInWithPassword({email, password: pw});
+      if(error) throw error;
+      openAuth(false);
+    }
+  }catch(e){ msg(thErr(e),"err") }
+  finally{ go.disabled=false }
+}
+
+/* ---------- รายการเฝ้าดู ---------- */
+async function loadWatchlist(){
+  AUTH.watch.clear();
+  try{
+    const {data} = await AUTH.sb.from("watchlist").select("*").order("created_at",{ascending:false});
+    (data||[]).forEach(w=>AUTH.watch.set(w.symbol, w));
+  }catch(e){ console.warn("watchlist load failed", e) }
+}
+const inWatch = sym => AUTH.watch.has(sym);
+async function toggleWatch(r){
+  if(!signedIn()){ openAuth(true); return }
+  const sym = r.symbol;
+  if(inWatch(sym)){
+    AUTH.watch.delete(sym);
+    await AUTH.sb.from("watchlist").delete().eq("user_id", AUTH.user.id).eq("symbol", sym);
+  }else{
+    if(AUTH.watch.size >= limits().watch){
+      alert(`ระดับ${limits().label}เก็บรายการเฝ้าดูได้สูงสุด ${limits().watch} ตัว`);
+      return;
+    }
+    const row = {user_id:AUTH.user.id, symbol:sym, name:r.name, market:S.market};
+    AUTH.watch.set(sym, row);
+    await AUTH.sb.from("watchlist").upsert(row, {onConflict:"user_id,symbol"});
+  }
+  paintStar(r);
+  render();
+}
+function paintStar(r){
+  const b=$("#starBtn"); if(!b) return;
+  const on = inWatch(r.symbol);
+  b.classList.toggle("on", on);
+  b.textContent = on ? "★ อยู่ในรายการเฝ้าดู" : "☆ เพิ่มเข้ารายการเฝ้าดู";
+}
+function openWl(on){
+  $("#wldw").classList.toggle("on",on); $("#wlov").classList.toggle("on",on);
+  if(!on) return;
+  const rows=[...AUTH.watch.values()];
+  $("#wlCount").textContent = `${rows.length} รายการ · สูงสุด ${limits().watch}`;
+  $("#wlBody").innerHTML = rows.length
+    ? rows.map(w=>`<div class="wlrow" data-s="${escapeHtml(w.symbol)}">
+        <span class="s">${escapeHtml(w.name||w.symbol.split(":")[1]||w.symbol)}</span>
+        <span class="n">${escapeHtml(w.symbol)}</span>
+        <button class="del" title="ลบออก">✕</button></div>`).join("")
+    : `<div class="empty">ยังไม่มีรายการ — เปิดหุ้นตัวไหนก็ได้แล้วกดปุ่ม ☆ เพิ่มเข้ารายการเฝ้าดู</div>`;
+  $("#wlBody").querySelectorAll(".del").forEach(b=>{
+    b.onclick = async e=>{
+      const sym = e.target.closest(".wlrow").dataset.s;
+      AUTH.watch.delete(sym);
+      await AUTH.sb.from("watchlist").delete().eq("user_id", AUTH.user.id).eq("symbol", sym);
+      openWl(true); render();
+    };
+  });
+  $("#wlBody").querySelectorAll(".wlrow .s").forEach(el=>{
+    el.style.cursor="pointer";
+    el.onclick = ()=>{ const sym=el.closest(".wlrow").dataset.s;
+      openWl(false); $("#q").value = sym.split(":")[1]||sym; doSearch() };
+  });
+}
+
+/* ---------- ซิงก์ตั้งค่าขึ้นคลาวด์ ---------- */
+async function pushCloudCfg(){
+  if(!signedIn()) return;
+  try{
+    await AUTH.sb.from("user_settings")
+      .upsert({user_id:AUTH.user.id, cfg:CFG, updated_at:new Date().toISOString()}, {onConflict:"user_id"});
+    return true;
+  }catch(e){ return false }
+}
+async function pullCloudCfg(){
+  if(!signedIn()) return;
+  try{
+    const {data} = await AUTH.sb.from("user_settings").select("cfg").eq("user_id",AUTH.user.id).maybeSingle();
+    if(data && data.cfg && Object.keys(data.cfg).length){
+      CFG = Object.assign({}, DEF_CFG, data.cfg);
+      applyCfg(); buildCfg();
+    }
+  }catch(e){}
+}
+
+/* ---------- จำกัดสิทธิ์ตามระดับสมาชิก ---------- */
+function gateMarket(m){
+  if(!authOn()) return true;               // ไม่ได้เปิดระบบสมาชิก = ใช้ได้หมด
+  return limits().markets.includes(m);
+}
+function gateBanner(){
+  if(!authOn() || tierOf()!=="free") return "";
+  const url=(window.SF_SUPABASE||{}).upgradeUrl;
+  return `<div class="gate">
+    <span>ระดับ<b>ฟรี</b> — ดูได้ ${TIERS.free.rows} อันดับ เฉพาะหุ้นไทย และเก็บรายการเฝ้าดูได้ ${TIERS.free.watch} ตัว</span>
+    <span class="sp"></span>
+    ${url ? `<a class="btn pri" style="padding:7px 15px;text-decoration:none" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">อัปเกรดเป็น Pro</a>`
+          : `<span class="mut">ติดต่อผู้ดูแลเพื่ออัปเกรด</span>`}
+  </div>`;
 }
 
 /* ================= การปรับแต่งหน้าตา ================= */
@@ -1280,7 +1650,7 @@ function rescore(){ if(!S.rows.length) return; S.rows.forEach(r=>r._score=score(
 /* ================= table ================= */
 const COLS_STOCK = [
   {k:"_rank", l:"#", r:r=>`<span class="rk">${r._rank}</span>`},
-  {k:"symbol", l:"หุ้น", r:r=>`<span class="sym">${escapeHtml(r.name||"")}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
+  {k:"symbol", l:"หุ้น", r:r=>`<span class="sym">${signedIn()&&inWatch(r.symbol)?"★ ":""}${escapeHtml(r.name||"")}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
   {k:"_pat", l:"กราฟ 5 ปี", r:r=>{const p=chartPattern(r);
     return `<span class="patg ${patCls(p.dir)}" title="${escapeHtml(sparkTitle(r))}">${sparkline(r)}</span>`}},
   {k:"_score", l:"คะแนน", r:r=>`<span class="scr"><span class="bar"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></span><span class="scv" style="color:${scColor(r._score)}">${r._score}</span></span>`},
@@ -2095,6 +2465,11 @@ async function doSearch(){
 $("#mkt").onclick = e => {
   const b=e.target.closest("button[data-m]"); if(!b) return;
   document.querySelectorAll("#mkt button").forEach(x=>x.classList.remove("on"));
+  if(!gateMarket(b.dataset.m)){
+    alert("ตลาดนี้เปิดให้เฉพาะสมาชิก Pro — อัปเกรดเพื่อเข้าถึงหุ้นสหรัฐฯ และคริปโต");
+    if(!signedIn()) openAuth(true);
+    return;
+  }
   b.classList.add("on"); S.market=b.dataset.m; S.preset=null; S.sector=null; S.rows=[];
   buildFilters(); buildTech(); buildSectors(); buildChips(); render();
   $("#st").textContent=""; $("#ai").innerHTML="";
@@ -2112,6 +2487,38 @@ $("#wrst").onclick = () => { S.weights={value:20,quality:25,growth:20,momentum:2
 $("#reload").onclick = () => { S.preset=null; buildChips(); run(readManual()) };
 document.querySelectorAll(".ex").forEach(b=>b.onclick=()=>{ $("#q").value=b.textContent; doSearch() });
 
+/* ---- เหตุการณ์ของระบบสมาชิก ---- */
+$("#authBtn").onclick = ()=>openAuth(true);
+$("#authX").onclick   = ()=>openAuth(false);
+$("#authov").onclick  = ()=>openAuth(false);
+$("#authGo").onclick  = doAuth;
+$("#authTabs").onclick = e=>{ const b=e.target.closest("button[data-t]"); if(b) setAuthMode(b.dataset.t) };
+["authEmail","authPw","authName"].forEach(id=>{
+  const el=$("#"+id); if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter") doAuth() });
+});
+$("#authForgot").onclick = async ()=>{
+  const email=$("#authEmail").value.trim();
+  if(!email) return msg("กรอกอีเมลก่อน แล้วกดลืมรหัสผ่านอีกครั้ง","err");
+  try{
+    const {error} = await AUTH.sb.auth.resetPasswordForEmail(email, {redirectTo: location.href});
+    if(error) throw error;
+    msg("ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว","ok");
+  }catch(e){ msg(thErr(e),"err") }
+};
+$("#userBtn").onclick = e=>{ e.stopPropagation(); $("#userMenu").classList.toggle("on") };
+document.addEventListener("click", ()=>{ const m=$("#userMenu"); if(m) m.classList.remove("on") });
+$("#userMenu").onclick = async e=>{
+  const b=e.target.closest("button[data-a]"); if(!b) return;
+  e.stopPropagation(); $("#userMenu").classList.remove("on");
+  const a=b.dataset.a;
+  if(a==="logout"){ await AUTH.sb.auth.signOut() }
+  else if(a==="watch"){ openWl(true) }
+  else if(a==="sync"){ const ok=await pushCloudCfg(); alert(ok?"ซิงก์การตั้งค่าขึ้นคลาวด์แล้ว":"ซิงก์ไม่สำเร็จ") }
+  else if(a==="upgrade"){ const u=(window.SF_SUPABASE||{}).upgradeUrl; if(u) window.open(u,"_blank","noopener") }
+};
+$("#wlX").onclick  = ()=>openWl(false);
+$("#wlov").onclick = ()=>openWl(false);
+
 $("#themeBtn").onclick = toggleTheme;
 $("#opencfg").onclick = ()=>openCfg(true);
 $("#cfgx").onclick = ()=>openCfg(false);
@@ -2119,7 +2526,7 @@ $("#cfgov").onclick = ()=>openCfg(false);
 $("#cfgReset").onclick = ()=>{ CFG = Object.assign({}, DEF_CFG); applyCfg(); buildCfg(); render() };
 if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", ()=>{ if(CFG.theme==="auto"){ applyCfg(); repaint() } });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false) } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false); openAuth(false); openWl(false) } });
 
 // นาฬิกาบนหัวเรื่อง
 (function tick(){
@@ -2136,6 +2543,7 @@ $("#legend").innerHTML =
    (เขียว = ปลายเส้นสูงกว่าจุดเริ่ม, แดง = ต่ำกว่า) · เอาเมาส์ชี้เพื่อดูผลตอบแทนและรูปแบบกราฟที่ตรวจพบ`;
 
 applyCfg();
+initAuth();
 buildFilters(); buildTech(); buildSectors(); buildChips(); buildWeights(); run([]);
 </script>
 </body>

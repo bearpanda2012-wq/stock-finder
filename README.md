@@ -9,6 +9,8 @@ stock-finder/
 ├── index.html              ← เว็บแอป (ไฟล์เดียวจบ) — นี่คือไฟล์ที่ GitHub Pages เสิร์ฟ
 ├── README.md
 ├── .gitignore
+├── supabase/
+│   └── schema.sql          ← ตารางฐานข้อมูลสำหรับระบบสมาชิก (ไม่ใช้ก็ได้)
 ├── proxy/                  ← ใช้เฉพาะตอนติด CORS
 │   ├── worker.js           Cloudflare Worker ทำหน้าที่ proxy
 │   └── wrangler.toml       ตั้งค่าสำหรับ deploy ด้วย CLI
@@ -89,6 +91,64 @@ const TV = "https://tv-proxy.yourname.workers.dev";
 | สรุปภาพรวมผลคัดกรอง | ค่ากลางทางสถิติ | สรุปเป็นภาษาโดย AI |
 
 เอา `cowork/stock-finder.html` ไปเปิดในเบราว์เซอร์ปกติจะได้หน้าเปล่า เพราะไม่มีสะพาน `window.cowork` — เก็บไว้เป็นต้นฉบับอ้างอิงเฉยๆ
+
+## ระบบสมาชิก
+
+**ต่อกับ Supabase เรียบร้อยแล้ว ใช้งานได้ทันที** — โปรเจกต์ `Stock Finder` (ap-northeast-1 / โตเกียว)
+
+ค่าที่ใช้อยู่ใน `index.html` บล็อก `window.SF_SUPABASE`:
+
+```
+url:     https://imfoelpjryfhiqnxzvcx.supabase.co
+anonKey: sb_publishable_m6vWrk4Gl3ih7CdgqV_Vnw_8Qwmc6Jf
+```
+
+publishable key เปิดเผยได้ ปลอดภัยเพราะ Row Level Security คุมว่าใครเห็นแถวไหน
+
+### ตารางในฐานข้อมูล
+
+| ตาราง | ใช้ทำอะไร | RLS |
+|---|---|---|
+| `profiles` | ระดับสมาชิก + วันหมดอายุ | เห็นเฉพาะของตัวเอง แก้ tier เองไม่ได้ |
+| `watchlist` | รายการเฝ้าดู | เจ้าของเท่านั้น |
+| `saved_screens` | ชุดคัดกรองที่บันทึกไว้ | เจ้าของเท่านั้น |
+| `user_settings` | ตั้งค่าที่ซิงก์ข้ามเครื่อง | เจ้าของเท่านั้น |
+
+สมัครสมาชิกแล้วจะมี trigger สร้างแถวใน `profiles` ให้อัตโนมัติ ระดับเริ่มต้นคือ `free`
+
+ไฟล์ `supabase/schema.sql` เก็บไว้เผื่อต้องสร้างใหม่หรือย้ายโปรเจกต์
+
+### ตั้งค่าอีเมลก่อนใช้จริง
+
+Supabase Dashboard → **Authentication → URL Configuration** ใส่โดเมนของคุณใน Site URL และ Redirect URLs
+(ถ้าเปิดจากไฟล์ในเครื่อง ให้เพิ่ม `http://localhost:8000` ด้วย)
+
+อยากให้สมัครแล้วเข้าใช้ได้เลยไม่ต้องยืนยันอีเมล → **Authentication → Providers → Email** แล้วปิด Confirm email
+
+### ระดับสมาชิก
+
+| | ฟรี | Pro / Lifetime |
+|---|---|---|
+| จำนวนอันดับที่แสดง | 30 | 200 |
+| ตลาด | หุ้นไทย | ไทย + สหรัฐฯ + คริปโต |
+| รายการเฝ้าดู | 10 ตัว | 200 ตัว |
+| ซิงก์ตั้งค่าข้ามเครื่อง | ✓ | ✓ |
+
+แก้เกณฑ์ได้ที่ตัวแปร `TIERS` ใน `index.html`
+
+### อัปเกรดสมาชิก
+
+ผู้ใช้แก้ `tier` ตัวเองไม่ได้ (RLS ปิดไว้) ต้องสั่งจากฝั่งเซิร์ฟเวอร์ — Dashboard → SQL Editor:
+
+```sql
+update public.profiles set tier='pro' where email='you@example.com';
+```
+
+รับเงินจริง: สร้าง Stripe Payment Link → ใส่ URL ในช่อง `upgradeUrl` → ทำ webhook (Supabase Edge Function)
+รับ event `checkout.session.completed` แล้ว `update profiles set tier='pro', tier_expires_at=now()+interval '1 month'`
+
+**สำคัญ:** การจำกัดสิทธิ์ในหน้าเว็บเป็นเรื่อง UX เท่านั้น คนที่แก้โค้ดในเบราว์เซอร์ยังดูข้อมูลได้
+เพราะข้อมูลหุ้นมาจาก TradingView ที่เปิดสาธารณะอยู่แล้ว ส่วนข้อมูลส่วนตัวปลอดภัยจริงเพราะ RLS บังคับที่ฐานข้อมูล
 
 ## ข้อจำกัด
 
