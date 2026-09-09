@@ -271,6 +271,27 @@ tbody tr:hover .patg{border-color:#d0cec8}
   margin:6px 0;font-size:11px;line-height:1.6;overflow-x:auto;
   font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--tx)}
 
+/* ---- หน้าจัดการสมาชิก ---- */
+.dw.wide{width:min(620px,96vw)}
+.admbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.admbar input,.admbar select{padding:8px 11px;border:1px solid var(--line);border-radius:9px;
+  background:var(--card);color:var(--tx);outline:none;font-size:12.5px}
+.admbar input{flex:1;min-width:150px}
+.admbar input:focus,.admbar select:focus{border-color:var(--acc)}
+.mrow{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;background:var(--card)}
+.mrow .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.mrow .em{font-weight:650;font-size:12.5px;word-break:break-all}
+.mrow .nm2{color:var(--tx2);font-size:11.5px}
+.mrow .sp{flex:1}
+.mrow .meta{color:var(--tx3);font-size:11px;margin-top:5px}
+.mrow .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.mrow .acts button{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:5px 11px;
+  font-size:11.5px;color:var(--tx2)}
+.mrow .acts button:hover{border-color:var(--acc);color:var(--acc)}
+.mrow .acts button.danger:hover{border-color:var(--dn);color:var(--dn)}
+.mrow.me{border-color:var(--acc);background:var(--acc-bg)}
+.admnote{font-size:11.5px;color:var(--tx3);line-height:1.6;margin-top:12px}
+
 .wlrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2)}
 .wlrow .s{font-weight:650;min-width:78px}
 .wlrow .n{flex:1;color:var(--tx2);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -356,6 +377,7 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
         <div class="menu" id="userMenu">
           <div class="mhead"><b id="mEmail"></b><span id="mTier" class="tier"></span></div>
           <button data-a="watch">⭐ รายการเฝ้าดู</button>
+          <button data-a="admin" id="mAdmin" style="display:none">👤 จัดการสมาชิก</button>
           <button data-a="sync">☁ ซิงก์การตั้งค่าขึ้นคลาวด์</button>
           <button data-a="upgrade" id="mUpgrade">✦ อัปเกรดเป็น Pro</button>
           <button data-a="logout">ออกจากระบบ</button>
@@ -469,6 +491,28 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
     </div>
   </div>
 </div>
+
+<!-- จัดการสมาชิก (เฉพาะแอดมิน) -->
+<div class="ov" id="admov"></div>
+<aside class="dw wide" id="admdw">
+  <div class="dwh">
+    <div><h2>จัดการสมาชิก</h2><p id="admCount">—</p></div>
+    <button class="x" id="admX">✕</button>
+  </div>
+  <div class="dwb">
+    <div class="admbar">
+      <input type="search" id="admQ" placeholder="ค้นหาอีเมลหรือชื่อ">
+      <select id="admFilter">
+        <option value="">ทุกระดับ</option>
+        <option value="free">ฟรี</option>
+        <option value="pro">Pro</option>
+        <option value="lifetime">Lifetime</option>
+      </select>
+      <button class="mini" id="admReload">↻ โหลดใหม่</button>
+    </div>
+    <div id="admList"></div>
+  </div>
+</aside>
 
 <!-- รายการเฝ้าดู -->
 <div class="ov" id="wlov"></div>
@@ -1110,7 +1154,7 @@ const TIERS = {
   pro:      {label:"PRO",      rows:200, markets:["thailand","america","crypto"], watch:200, screens:50},
   lifetime: {label:"LIFETIME", rows:200, markets:["thailand","america","crypto"], watch:999, screens:999}
 };
-const AUTH = { sb:null, user:null, profile:null, watch:new Map() };
+const AUTH = { sb:null, user:null, profile:null, isAdmin:false, watch:new Map() };
 const tierOf  = () => (AUTH.profile && TIERS[AUTH.profile.tier]) ? AUTH.profile.tier : "free";
 const limits  = () => TIERS[tierOf()];
 const authOn  = () => !!AUTH.sb;
@@ -1131,10 +1175,11 @@ async function onSession(session){
   AUTH.user = (session && session.user) || null;
   if(AUTH.user){
     await loadProfile();
+    await loadAdminFlag();
     await loadWatchlist();
     await pullCloudCfg();
   }else{
-    AUTH.profile = null; AUTH.watch.clear();
+    AUTH.profile = null; AUTH.isAdmin = false; AUTH.watch.clear();
   }
   paintAuth();
   render();
@@ -1163,6 +1208,8 @@ function paintAuth(){
   const tv = $("#mTier");
   tv.textContent = TIERS[t].label;
   tv.className = "tier" + (t!=="free" ? " pro" : "");
+  const adm = $("#mAdmin");
+  if(adm) adm.style.display = AUTH.isAdmin ? "" : "none";
   const up = $("#mUpgrade");
   const url = (window.SF_SUPABASE||{}).upgradeUrl;
   up.style.display = (t==="free" && url) ? "" : "none";
@@ -1305,6 +1352,105 @@ function openWl(on){
     el.style.cursor="pointer";
     el.onclick = ()=>{ const sym=el.closest(".wlrow").dataset.s;
       openWl(false); $("#q").value = sym.split(":")[1]||sym; doSearch() };
+  });
+}
+
+/* ---------- หน้าจัดการสมาชิก (เฉพาะแอดมิน) ---------- */
+async function loadAdminFlag(){
+  AUTH.isAdmin = false;
+  try{
+    const {data} = await AUTH.sb.from("admins").select("user_id").eq("user_id", AUTH.user.id).maybeSingle();
+    AUTH.isAdmin = !!data;
+  }catch(e){}
+}
+let ADM = [];
+async function openAdm(on){
+  $("#admdw").classList.toggle("on",on); $("#admov").classList.toggle("on",on);
+  if(on) await loadMembers();
+}
+async function loadMembers(){
+  const list=$("#admList");
+  list.innerHTML = `<div class="mut" style="font-size:12px;padding:8px 0">กำลังโหลด…</div>`;
+  try{
+    const {data, error} = await AUTH.sb.from("profiles")
+      .select("id,email,display_name,tier,tier_expires_at,tier_updated_at,created_at")
+      .order("created_at",{ascending:false});
+    if(error) throw error;
+    ADM = data || [];
+    renderMembers();
+  }catch(e){
+    list.innerHTML = `<div class="err">โหลดรายชื่อไม่สำเร็จ: ${escapeHtml(e.message||String(e))}</div>`;
+  }
+}
+const TIER_TH = {free:"ฟรี", pro:"PRO", lifetime:"LIFETIME"};
+function fmtDay(s){
+  if(!s) return "—";
+  const d=new Date(s); if(isNaN(d)) return "—";
+  return d.toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"});
+}
+function expiryNote(m){
+  if(m.tier==="free") return "";
+  if(!m.tier_expires_at) return " · ไม่มีวันหมดอายุ";
+  const days = Math.ceil((new Date(m.tier_expires_at)-Date.now())/86400000);
+  return days<0 ? ` · หมดอายุแล้วเมื่อ ${fmtDay(m.tier_expires_at)}`
+                : ` · หมดอายุ ${fmtDay(m.tier_expires_at)} (อีก ${days} วัน)`;
+}
+function renderMembers(){
+  const q=($("#admQ").value||"").trim().toLowerCase();
+  const f=$("#admFilter").value;
+  const rows = ADM.filter(m=>{
+    if(f && m.tier!==f) return false;
+    if(!q) return true;
+    return String(m.email||"").toLowerCase().includes(q) ||
+           String(m.display_name||"").toLowerCase().includes(q);
+  });
+  $("#admCount").textContent = `${rows.length} จาก ${ADM.length} คน`;
+  const list=$("#admList");
+  if(!rows.length){ list.innerHTML=`<div class="empty">ไม่พบสมาชิกที่ตรงเงื่อนไข</div>`; return }
+  list.innerHTML = rows.map(m=>{
+    const me = m.id===AUTH.user.id;
+    const t = TIER_TH[m.tier]||m.tier;
+    return `<div class="mrow ${me?"me":""}" data-id="${m.id}">
+      <div class="top">
+        <span class="em">${escapeHtml(m.email||"—")}</span>
+        ${m.display_name?`<span class="nm2">${escapeHtml(m.display_name)}</span>`:""}
+        <span class="sp"></span>
+        <span class="tier ${m.tier!=="free"?"pro":""}">${t}</span>
+      </div>
+      <div class="meta">สมัคร ${fmtDay(m.created_at)}${expiryNote(m)}${me?" · บัญชีของคุณ":""}</div>
+      <div class="acts">
+        <button data-t="pro" data-m="1">Pro 1 เดือน</button>
+        <button data-t="pro" data-m="12">Pro 1 ปี</button>
+        <button data-t="lifetime">Lifetime</button>
+        <button data-t="free" class="danger">ลดเป็นฟรี</button>
+      </div>
+    </div>`;
+  }).join("") + `<div class="admnote">การเปลี่ยนระดับมีผลทันทีที่สมาชิกโหลดหน้าใหม่ · ระดับที่หมดอายุแล้วระบบจะถือเป็นฟรีให้เองโดยไม่ต้องแก้</div>`;
+
+  list.querySelectorAll(".mrow .acts button").forEach(b=>{
+    b.onclick = async ()=>{
+      const row = b.closest(".mrow");
+      const id = row.dataset.id;
+      const tier = b.dataset.t;
+      const months = b.dataset.m ? +b.dataset.m : null;
+      const m = ADM.find(x=>x.id===id);
+      const who = (m && m.email) || "สมาชิกรายนี้";
+      if(tier==="free" && !confirm(`ลดระดับ ${who} เป็นฟรี?`)) return;
+      const exp = months ? new Date(Date.now()+months*30*86400000).toISOString() : null;
+      b.disabled = true;
+      try{
+        const {error} = await AUTH.sb.from("profiles")
+          .update({tier, tier_expires_at: exp, tier_updated_at: new Date().toISOString()})
+          .eq("id", id);
+        if(error) throw error;
+        if(m){ m.tier=tier; m.tier_expires_at=exp; m.tier_updated_at=new Date().toISOString() }
+        renderMembers();
+        if(id===AUTH.user.id){ await loadProfile(); paintAuth(); render() }
+      }catch(e){
+        alert("เปลี่ยนระดับไม่สำเร็จ: " + (e.message||e));
+        b.disabled = false;
+      }
+    };
   });
 }
 
@@ -2513,9 +2659,15 @@ $("#userMenu").onclick = async e=>{
   const a=b.dataset.a;
   if(a==="logout"){ await AUTH.sb.auth.signOut() }
   else if(a==="watch"){ openWl(true) }
+  else if(a==="admin"){ openAdm(true) }
   else if(a==="sync"){ const ok=await pushCloudCfg(); alert(ok?"ซิงก์การตั้งค่าขึ้นคลาวด์แล้ว":"ซิงก์ไม่สำเร็จ") }
   else if(a==="upgrade"){ const u=(window.SF_SUPABASE||{}).upgradeUrl; if(u) window.open(u,"_blank","noopener") }
 };
+$("#admX").onclick   = ()=>openAdm(false);
+$("#admov").onclick  = ()=>openAdm(false);
+$("#admReload").onclick = loadMembers;
+$("#admQ").addEventListener("input", renderMembers);
+$("#admFilter").addEventListener("change", renderMembers);
 $("#wlX").onclick  = ()=>openWl(false);
 $("#wlov").onclick = ()=>openWl(false);
 
@@ -2526,7 +2678,7 @@ $("#cfgov").onclick = ()=>openCfg(false);
 $("#cfgReset").onclick = ()=>{ CFG = Object.assign({}, DEF_CFG); applyCfg(); buildCfg(); render() };
 if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", ()=>{ if(CFG.theme==="auto"){ applyCfg(); repaint() } });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false); openAuth(false); openWl(false) } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false); openAuth(false); openWl(false); openAdm(false) } });
 
 // นาฬิกาบนหัวเรื่อง
 (function tick(){

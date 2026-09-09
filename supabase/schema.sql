@@ -116,3 +116,59 @@ create policy "own settings" on public.user_settings
 --  ตั้งเป็น pro ให้ตัวเองตอนทดสอบ (รันใน SQL Editor ซึ่งใช้สิทธิ์ service role):
 --    update public.profiles set tier='pro' where email='you@example.com';
 -- ============================================================
+
+
+-- ============================================================
+--  ส่วนที่ 5) ระบบแอดมิน + หน้าจัดการสมาชิก
+-- ============================================================
+
+-- แยกตารางแอดมินออกมา เพื่อไม่ให้ policy ของ profiles วนซ้ำตัวเอง
+create table if not exists public.admins (
+  user_id    uuid primary key references auth.users on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.admins enable row level security;
+
+-- SECURITY DEFINER จึงข้าม RLS ได้ ไม่เกิด infinite recursion
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = ''
+as $$ select exists (select 1 from public.admins a where a.user_id = (select auth.uid())); $$;
+
+revoke execute on function public.is_admin() from public, anon;
+grant  execute on function public.is_admin() to authenticated;
+
+-- อ่านระดับของตัวเองโดยไม่ผ่าน RLS — ใช้ใน policy ป้องกันการแก้ tier ตัวเอง
+create or replace function public.my_tier()
+returns text language sql stable security definer set search_path = ''
+as $$ select p.tier from public.profiles p where p.id = (select auth.uid()); $$;
+
+revoke execute on function public.my_tier() from public, anon;
+grant  execute on function public.my_tier() to authenticated;
+
+drop policy if exists "read admins" on public.admins;
+create policy "read admins" on public.admins
+  for select to authenticated
+  using ((select auth.uid()) = user_id or public.is_admin());
+
+drop policy if exists "admin read all profiles" on public.profiles;
+create policy "admin read all profiles" on public.profiles
+  for select to authenticated using (public.is_admin());
+
+drop policy if exists "admin update any profile" on public.profiles;
+create policy "admin update any profile" on public.profiles
+  for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- แทนที่ policy เดิมที่อ่าน profiles ซ้อนตัวเอง (จะเกิด recursion ตอน UPDATE)
+drop policy if exists "update own name" on public.profiles;
+create policy "update own name" on public.profiles
+  for update to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id and tier = public.my_tier());
+
+alter table public.profiles add column if not exists tier_updated_at timestamptz;
+
+-- ตั้งแอดมินคนแรก (เปลี่ยนอีเมลตามต้องการ)
+-- insert into public.admins (user_id)
+-- select id from auth.users where email = 'you@example.com'
+-- on conflict (user_id) do nothing;
