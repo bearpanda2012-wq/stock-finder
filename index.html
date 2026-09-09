@@ -586,7 +586,7 @@ const $ = s => document.querySelector(s);
 
 /* ================= state ================= */
 const S = {
-  market:"thailand", rows:[], sortKey:"_score", sortDir:"desc", preset:null, sector:null,
+  market:"thailand", rows:[], sortKey:"_score", sortDir:"desc", preset:null, sector:null, ranTier:null,
   weights: load("w", {value:20, quality:25, growth:20, momentum:20, tech:15})
 };
 function load(k,d){ try{ const v=localStorage.getItem("sf_"+k); return v?JSON.parse(v):d }catch(e){ return d } }
@@ -1096,6 +1096,7 @@ async function run(filters, note){
   $("#go").disabled=$("#go2").disabled=true;
   let limit = +$("#lim").value;
   if(authOn()) limit = Math.min(limit, limits().rows);
+  S.ranTier = authOn() ? tierOf() : "-";
   const tech = readTech(), sec = sectorFilter();
   filters = [...(filters||[]), ...tech, ...sec];
   try{
@@ -1182,7 +1183,13 @@ async function onSession(session){
     AUTH.profile = null; AUTH.isAdmin = false; AUTH.watch.clear();
   }
   paintAuth();
-  render();
+  // ตอนเปิดหน้า ตารางมักโหลดเสร็จก่อน Supabase ยืนยันตัวตน
+  // ถ้าสิทธิ์ที่ได้จริงต่างจากตอนดึงข้อมูล ให้ดึงใหม่ให้ตรงระดับสมาชิก
+  if(S.ranTier !== undefined && S.ranTier !== null && S.ranTier !== tierOf()){
+    run(readManual());
+  }else{
+    render();
+  }
 }
 
 async function loadProfile(){
