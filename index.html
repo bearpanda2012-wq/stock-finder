@@ -297,6 +297,10 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .wlrow .n{flex:1;color:var(--tx2);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wlrow .del{border:0;background:transparent;color:var(--tx3);font-size:15px;padding:2px 6px;border-radius:6px}
 .wlrow .del:hover{background:var(--sunk);color:var(--dn)}
+.starcell{border:0;background:transparent;color:var(--tx3);font-size:14px;line-height:1;
+  padding:2px 5px 2px 0;margin-right:2px;cursor:pointer;vertical-align:1px;border-radius:5px}
+.starcell:hover{color:var(--acc);background:var(--acc-bg)}
+.starcell.on{color:#e0a92b}
 .star{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 12px;
   font-size:12px;color:var(--tx2);cursor:pointer}
 .star:hover{border-color:var(--acc);color:var(--acc)}
@@ -606,7 +610,7 @@ const OPMAP = { greater:"greater", less:"less", greater_or_equal:"egreater",
   less_or_equal:"eless", equal:"equal", not_equal:"nequal",
   in_range:"in_range", not_in_range:"not_in_range", match:"match" };
 
-async function tvScan({market, columns, filters, sortBy, order, limit}){
+async function tvScan({market, columns, filters, sortBy, order, limit, tickers}){
   const body = {
     columns,
     filter: (filters||[]).map(f=>({left:f.field, operation:OPMAP[f.operator]||f.operator, right:f.value})),
@@ -616,6 +620,7 @@ async function tvScan({market, columns, filters, sortBy, order, limit}){
     sort:{sortBy:sortBy, sortOrder:order||"desc"},
     markets:[market]
   };
+  if(tickers && tickers.length) body.symbols = {tickers};
   const res = await fetch(`${TVBASE()}/${market}/scan?label-product=screener-stock`, {
     method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body: JSON.stringify(body)
   });
@@ -1341,12 +1346,16 @@ function openWl(on){
   if(!on) return;
   const rows=[...AUTH.watch.values()];
   $("#wlCount").textContent = `${rows.length} รายการ · สูงสุด ${limits().watch}`;
-  $("#wlBody").innerHTML = rows.length
+  const hdr = $("#wlBody");
+  $("#wlBody").innerHTML = (rows.length
+    ? `<button class="btn pri" id="wlShow" style="width:100%;padding:10px;margin-bottom:12px">แสดงทั้งหมดในตาราง</button>` : "")
+    + (rows.length
     ? rows.map(w=>`<div class="wlrow" data-s="${escapeHtml(w.symbol)}">
         <span class="s">${escapeHtml(w.name||w.symbol.split(":")[1]||w.symbol)}</span>
         <span class="n">${escapeHtml(w.symbol)}</span>
         <button class="del" title="ลบออก">✕</button></div>`).join("")
-    : `<div class="empty">ยังไม่มีรายการ — เปิดหุ้นตัวไหนก็ได้แล้วกดปุ่ม ☆ เพิ่มเข้ารายการเฝ้าดู</div>`;
+    : `<div class="empty">ยังไม่มีรายการ — กดดาว ☆ หน้าชื่อหุ้นในตารางเพื่อเพิ่ม</div>`);
+  const ws=$("#wlShow"); if(ws) ws.onclick = showWatchOnly;
   $("#wlBody").querySelectorAll(".del").forEach(b=>{
     b.onclick = async e=>{
       const sym = e.target.closest(".wlrow").dataset.s;
@@ -1459,6 +1468,61 @@ function renderMembers(){
       }
     };
   });
+}
+
+/* ---------- ดูเฉพาะรายการเฝ้าดู ---------- */
+async function showWatchOnly(){
+  if(!signedIn()){ openAuth(true); return }
+  const syms = [...AUTH.watch.keys()];
+  if(!syms.length){ alert("ยังไม่มีรายการเฝ้าดู — กดดาว ☆ หน้าชื่อหุ้นในตารางเพื่อเพิ่ม"); return }
+  openWl(false);
+  const st=$("#st"); $("#err").innerHTML=""; $("#ai").innerHTML="";
+  st.innerHTML='<span class="dot"></span> กำลังโหลดรายการเฝ้าดู…';
+  S.preset=null; S.sector=null; buildChips(); buildSectors();
+
+  // จัดกลุ่มตามตลาดที่บันทึกไว้ แล้วดึงทีละตลาด
+  const byMkt = {};
+  syms.forEach(sym=>{
+    const w = AUTH.watch.get(sym);
+    const mk = (w && w.market) || (/^(SET|MAI):/i.test(sym) ? "thailand"
+              : /^BINANCE:/i.test(sym) ? "crypto" : "america");
+    (byMkt[mk] = byMkt[mk] || []).push(sym);
+  });
+
+  let rows = [];
+  for(const mk of Object.keys(byMkt)){
+    const isC = mk === "crypto";
+    const prevMarket = S.market;
+    S.market = mk;                                  // ให้ pillars()/cols() คิดถูกตลาด
+    try{
+      const out = await tvScan({
+        market: mk,
+        columns: isC ? CRYPTO_COLS : STOCK_COLS,
+        filters: [],
+        tickers: byMkt[mk],
+        sortBy: isC ? "market_cap_calc" : "market_cap_basic",
+        limit: 200
+      });
+      let got = out.rows || [];
+      if(isC) got = got.map(r=>({...r, description:r.base_currency_desc, name:(r.symbol||"").split(":")[1]||r.symbol}));
+      // เผื่อ symbols.tickers ไม่ทำงาน — กรองซ้ำฝั่งเรา
+      got = got.filter(r=>AUTH.watch.has(r.symbol));
+      got.forEach(r=>{ r._mkt = mk; r._score = score(r) });
+      rows = rows.concat(got);
+    }catch(e){ console.warn("watch scan failed", mk, e) }
+    S.market = prevMarket;
+  }
+
+  if(!rows.length){
+    st.textContent="";
+    $("#err").innerHTML = `<div class="err">ดึงข้อมูลรายการเฝ้าดูไม่สำเร็จ — ลองกดหุ้นทีละตัวจากลิ้นชักรายการเฝ้าดูแทน</div>`;
+    return;
+  }
+  rows.sort((a,b)=>b._score-a._score);
+  S.rows = rows; S.sortKey="_score"; S.sortDir="desc"; S.ranTier = authOn()?tierOf():"-";
+  st.innerHTML = `⭐ รายการเฝ้าดู · <b>${rows.length}</b> ตัว` +
+    (rows.length<syms.length ? ` <span class="mut">(ดึงข้อมูลได้ ${rows.length} จาก ${syms.length})</span>` : "");
+  render();
 }
 
 /* ---------- ซิงก์ตั้งค่าขึ้นคลาวด์ ---------- */
@@ -1803,7 +1867,7 @@ function rescore(){ if(!S.rows.length) return; S.rows.forEach(r=>r._score=score(
 /* ================= table ================= */
 const COLS_STOCK = [
   {k:"_rank", l:"#", r:r=>`<span class="rk">${r._rank}</span>`},
-  {k:"symbol", l:"หุ้น", r:r=>`<span class="sym">${signedIn()&&inWatch(r.symbol)?"★ ":""}${escapeHtml(r.name||"")}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
+  {k:"symbol", l:"หุ้น", r:r=>`${starCell(r)}<span class="sym">${escapeHtml(r.name||"")}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
   {k:"_pat", l:"กราฟ 5 ปี", r:r=>{const p=chartPattern(r);
     return `<span class="patg ${patCls(p.dir)}" title="${escapeHtml(sparkTitle(r))}">${sparkline(r)}</span>`}},
   {k:"_score", l:"คะแนน", r:r=>`<span class="scr"><span class="bar"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></span><span class="scv" style="color:${scColor(r._score)}">${r._score}</span></span>`},
@@ -1823,7 +1887,7 @@ const COLS_STOCK = [
 ];
 const COLS_CRYPTO = [
   {k:"_rank", l:"#", r:r=>`<span class="rk">${r._rank}</span>`},
-  {k:"symbol", l:"เหรียญ", r:r=>`<span class="sym">${escapeHtml((r.name||"").replace(/USD$/,""))}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
+  {k:"symbol", l:"เหรียญ", r:r=>`${starCell(r)}<span class="sym">${escapeHtml((r.name||"").replace(/USD$/,""))}</span><span class="nm">${escapeHtml(r.description||"")}</span>`},
   {k:"_pat", l:"กราฟ 5 ปี", r:r=>{const p=chartPattern(r);
     return `<span class="patg ${patCls(p.dir)}" title="${escapeHtml(sparkTitle(r))}">${sparkline(r)}</span>`}},
   {k:"_score", l:"คะแนน", r:r=>`<span class="scr"><span class="bar"><i style="width:${r._score}%;background:${scColor(r._score)}"></i></span><span class="scv" style="color:${scColor(r._score)}">${r._score}</span></span>`},
@@ -1836,6 +1900,9 @@ const COLS_CRYPTO = [
   {k:"RSI", l:"RSI", r:r=>num(r.RSI,0)},
   {k:"Recommend.All", l:"สัญญาณ", r:r=>{const b=recLabel(r["Recommend.All"]); return `<span class="badge ${b.c}">${b.t}</span>`}}
 ];
+const starCell = r => authOn()
+  ? `<button class="starcell${inWatch(r.symbol)?" on":""}" title="${inWatch(r.symbol)?"เอาออกจากรายการเฝ้าดู":"เพิ่มเข้ารายการเฝ้าดู"}">${inWatch(r.symbol)?"★":"☆"}</button>`
+  : "";
 const cols = () => visibleCols();
 
 function render(){
@@ -1858,7 +1925,11 @@ function render(){
   if(!rows.length){ tb.innerHTML=`<tr><td class="empty" colspan="${C.length}">ไม่พบรายการที่ตรงเงื่อนไข — ลองผ่อนเกณฑ์ลง</td></tr>`; return }
   tb.innerHTML = rows.map((r,i)=>`<tr data-i="${i}">`+C.map(c=>`<td>${c.r(r)}</td>`).join("")+"</tr>").join("");
   tb.querySelectorAll("tr").forEach(tr=>{
-    tr.onclick=()=>{ tb.querySelectorAll("tr").forEach(t=>t.classList.remove("sel")); tr.classList.add("sel"); detail(rows[+tr.dataset.i]) };
+    tr.onclick=(e)=>{
+      const row = rows[+tr.dataset.i];
+      if(e.target.closest(".starcell")){ e.stopPropagation(); toggleWatch(row); return }
+      tb.querySelectorAll("tr").forEach(t=>t.classList.remove("sel")); tr.classList.add("sel"); detail(row);
+    };
   });
 }
 
