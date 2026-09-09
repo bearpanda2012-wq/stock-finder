@@ -447,7 +447,7 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
   <div class="status" id="st"></div>
   <div id="ai"></div>
 
-  <div class="tblwrap">
+  <div class="tblwrap" data-tbl>
     <table>
       <thead id="th"></thead>
       <tbody id="tb"><tr><td class="empty" colspan="20">กำลังโหลด…</td></tr></tbody>
@@ -535,6 +535,12 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
     <button class="x" id="cfgx">✕</button>
   </div>
   <div class="dwb">
+    <div class="sec">
+      <h3>ภาษาของหน้าเว็บ</h3>
+      <p style="margin:0 0 8px;font-size:12px;color:var(--tx2);line-height:1.6">
+        เปลี่ยนข้อความทั้งหน้าเว็บ · ครั้งแรกของแต่ละภาษาจะใช้เวลาแปลสักครู่ หลังจากนั้นจำไว้ในเครื่อง</p>
+      <div class="segs" id="cfgUiLang" style="flex-wrap:wrap"></div>
+    </div>
     <div class="sec"><h3>โหมดสี</h3><div class="segs" id="cfgTheme"></div></div>
     <div class="sec"><h3>สีหลัก</h3><div class="swz" id="cfgAccent"></div></div>
     <div class="sec"><h3>ความหนาแน่นของตาราง</h3><div class="segs" id="cfgDense"></div></div>
@@ -1561,12 +1567,132 @@ function gateBanner(){
   </div>`;
 }
 
+/* ================= แปลหน้าเว็บทั้งหน้า =================
+   เก็บภาษาไทยเป็นต้นฉบับในโค้ด แล้วแปลข้อความบนหน้าจอตอนรันไทม์
+   แปลเฉพาะข้อความที่มีอักษรไทย → ชื่อหุ้น ตัวเลข ตัวย่อ จึงไม่ถูกแตะ
+   คำแปลถูกแคชไว้ในเครื่อง เปลี่ยนภาษาซ้ำจึงไม่ต้องเรียกใหม่
+======================================================== */
+const UI_LANGS = [["th","ไทย"],["en","English"],["zh-CN","中文"],["ja","日本語"],
+                  ["ko","한국어"],["de","Deutsch"],["fr","Français"],["es","Español"]];
+const hasThai = s => /[฀-๿]/.test(s||"");
+const I18N = { cache:{}, applying:false, timer:null, busy:false };
+
+function i18nCacheKey(lang){ return "sf_i18n_" + lang }
+function loadI18nCache(lang){
+  try{ I18N.cache = JSON.parse(localStorage.getItem(i18nCacheKey(lang)) || "{}") }
+  catch(e){ I18N.cache = {} }
+}
+function saveI18nCache(lang){
+  try{ localStorage.setItem(i18nCacheKey(lang), JSON.stringify(I18N.cache)) }catch(e){}
+}
+
+// รวบรวมจุดที่ต้องแปลทั้งหน้า: ข้อความ + placeholder + title
+function collectI18n(){
+  const out = [];
+  const skip = new Set(["SCRIPT","STYLE","CANVAS","SVG","PATH","NOSCRIPT"]);
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(n){
+      const p = n.parentElement;
+      if(!p || skip.has(p.tagName)) return NodeFilter.FILTER_REJECT;
+      if(p.closest("[data-notr]")) return NodeFilter.FILTER_REJECT;
+      const src = n.__i18nSrc !== undefined ? n.__i18nSrc : n.nodeValue;
+      if(!hasThai(src) || !src.trim()) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  let n;
+  while((n = w.nextNode())){
+    if(n.__i18nSrc === undefined) n.__i18nSrc = n.nodeValue;
+    out.push({node:n, attr:null, src:n.__i18nSrc});
+  }
+  document.querySelectorAll("[placeholder],[title]").forEach(el=>{
+    ["placeholder","title"].forEach(a=>{
+      const cur = el.getAttribute(a); if(cur===null) return;
+      const key = "__i18n_"+a;
+      if(el[key] === undefined){ if(!hasThai(cur)) return; el[key] = cur }
+      if(hasThai(el[key])) out.push({node:el, attr:a, src:el[key]});
+    });
+  });
+  return out;
+}
+
+// แปลเป็นชุด เร็วกว่าและประหยัดการเรียก
+async function translateBatch(list, lang){
+  const todo = list.filter(s=>!I18N.cache[s]);
+  if(!todo.length) return;
+  const groups = [];
+  let cur = [], len = 0;
+  for(const s of todo){
+    if(len + s.length > 1200 && cur.length){ groups.push(cur); cur=[]; len=0 }
+    cur.push(s); len += s.length + 1;
+  }
+  if(cur.length) groups.push(cur);
+
+  for(const g of groups){
+    const joined = g.join("\n");
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(joined)}`;
+    const j = await getJsonTimed(url, 8000);
+    let ok = false;
+    if(j && Array.isArray(j[0])){
+      const text = j[0].map(x=>x && x[0] ? x[0] : "").join("");
+      const parts = text.split("\n");
+      if(parts.length === g.length){
+        g.forEach((s,i)=>{ I18N.cache[s] = parts[i].trim() });
+        ok = true;
+      }
+    }
+    if(!ok){                      // แบ่งกลุ่มไม่ตรง → แปลทีละบรรทัดกันเพี้ยน
+      for(const s of g){
+        const u2 = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(s)}`;
+        const r2 = await getJsonTimed(u2, 6000);
+        if(r2 && Array.isArray(r2[0])) I18N.cache[s] = r2[0].map(x=>x&&x[0]?x[0]:"").join("").trim();
+      }
+    }
+  }
+  saveI18nCache(lang);
+}
+
+function paintI18n(items, lang){
+  I18N.applying = true;
+  items.forEach(it=>{
+    const val = lang === "th" ? it.src : (I18N.cache[it.src] || it.src);
+    if(it.attr) it.node.setAttribute(it.attr, val);
+    else if(it.node.nodeValue !== val) it.node.nodeValue = val;
+  });
+  I18N.applying = false;
+}
+
+async function applyI18n(){
+  const lang = CFG.uiLang || "th";
+  document.documentElement.lang = lang;
+  const items = collectI18n();
+  if(lang === "th"){ paintI18n(items, "th"); return }
+  loadI18nCache(lang);
+  const need = [...new Set(items.map(i=>i.src))].filter(s=>!I18N.cache[s]);
+  paintI18n(items, lang);                    // ทาส่วนที่แปลไว้แล้วก่อน
+  if(!need.length || I18N.busy) return;
+  I18N.busy = true;
+  try{ await translateBatch(need, lang); paintI18n(collectI18n(), lang) }
+  catch(e){ console.warn("i18n failed", e) }
+  finally{ I18N.busy = false }
+}
+
+// หน้าเว็บวาดใหม่บ่อย (ตาราง แผงรายตัว) จึงเฝ้าดูแล้วแปลซ้ำอัตโนมัติ
+function watchI18n(){
+  const mo = new MutationObserver(()=>{
+    if(I18N.applying || (CFG.uiLang||"th") === "th") return;
+    clearTimeout(I18N.timer);
+    I18N.timer = setTimeout(()=>applyI18n(), 120);
+  });
+  mo.observe(document.body, {childList:true, subtree:true, characterData:true});
+}
+
 /* ================= การปรับแต่งหน้าตา ================= */
 const ACCENTS = [
   ["#b8623a","ดินเผา"], ["#2f6fb8","น้ำเงิน"], ["#2e8b62","เขียว"],
   ["#8a5cc4","ม่วง"], ["#c2436b","ชมพู"], ["#c08a1e","ทอง"], ["#4a4a52","เทาเข้ม"]
 ];
-const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null, avkey:"", proxy:"", lang:"th"};
+const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null, avkey:"", proxy:"", lang:"th", uiLang:"th"};
 let CFG = Object.assign({}, DEF_CFG, load("cfg", {}));
 
 function applyCfg(){
@@ -1622,6 +1748,11 @@ function buildCfg(){
   segs($("#cfgFont"),  [["s","เล็ก"],["m","กลาง"],["l","ใหญ่"]], CFG.font, v=>CFG.font=v);
   segs($("#cfgRadius"),[["sharp","เหลี่ยม"],["md","ปกติ"],["round","มน"]], CFG.radius, v=>CFG.radius=v);
   segs($("#cfgLang"), LANGS, CFG.lang || "th", v=>CFG.lang=v);
+  segs($("#cfgUiLang"), UI_LANGS, CFG.uiLang || "th", v=>{
+    CFG.uiLang = v; save("cfg", CFG);
+    if(v === "th") location.reload();     // กลับต้นฉบับไทยให้สะอาดที่สุด
+    else applyI18n();
+  });
 
   const sw=$("#cfgAccent"); sw.innerHTML="";
   ACCENTS.forEach(([hex,name])=>{
@@ -2773,6 +2904,8 @@ $("#legend").innerHTML =
    (เขียว = ปลายเส้นสูงกว่าจุดเริ่ม, แดง = ต่ำกว่า) · เอาเมาส์ชี้เพื่อดูผลตอบแทนและรูปแบบกราฟที่ตรวจพบ`;
 
 applyCfg();
+watchI18n();
+if((CFG.uiLang||"th") !== "th") applyI18n();
 initAuth();
 buildFilters(); buildTech(); buildSectors(); buildChips(); buildWeights(); run([]);
 </script>
