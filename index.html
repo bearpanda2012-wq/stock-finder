@@ -1167,7 +1167,7 @@ const TIERS = {
   pro:      {label:"PRO",      rows:200, markets:["thailand","america","crypto"], watch:200, screens:50},
   lifetime: {label:"LIFETIME", rows:200, markets:["thailand","america","crypto"], watch:999, screens:999}
 };
-const AUTH = { sb:null, user:null, profile:null, isAdmin:false, watch:new Map() };
+const AUTH = { sb:null, user:null, profile:null, isAdmin:false, offline:false, watch:new Map() };
 const tierOf  = () => (AUTH.profile && TIERS[AUTH.profile.tier]) ? AUTH.profile.tier : "free";
 const limits  = () => TIERS[tierOf()];
 const authOn  = () => !!AUTH.sb;
@@ -1181,7 +1181,13 @@ function initAuth(){
     AUTH.sb = window.supabase.createClient(c.url, c.anonKey, {auth:{persistSession:true, autoRefreshToken:true}});
   }catch(e){ AUTH.needSetup = "ค่า Supabase ไม่ถูกต้อง: " + (e.message||e); paintAuth(); return }
   AUTH.sb.auth.onAuthStateChange((_e, session)=>{ onSession(session) });
-  AUTH.sb.auth.getSession().then(({data})=>onSession(data && data.session));
+  AUTH.sb.auth.getSession()
+    .then(({data})=>onSession(data && data.session))
+    .catch(e=>{ AUTH.offline = true; paintAuth(); console.warn("supabase unreachable", e) });
+  // ทดสอบว่าเซิร์ฟเวอร์ตื่นอยู่จริงไหม
+  fetch(c.url + "/auth/v1/health", {headers:{apikey:c.anonKey}})
+    .then(r=>{ AUTH.offline = !r.ok; paintAuth() })
+    .catch(()=>{ AUTH.offline = true; paintAuth() });
 }
 
 async function onSession(session){
@@ -1217,7 +1223,18 @@ async function loadProfile(){
 function paintAuth(){
   const btn=$("#authBtn"), box=$("#userBox");
   if(!authOn()){ if(btn) btn.style.display=""; if(box) box.style.display="none"; return }
-  if(!signedIn()){ btn.style.display=""; box.style.display="none"; return }
+  if(!signedIn()){
+    btn.style.display=""; box.style.display="none";
+    if(AUTH.offline){
+      btn.textContent = "⚠ เซิร์ฟเวอร์ไม่พร้อม";
+      btn.title = "ต่อ Supabase ไม่ได้ — โปรเจกต์อาจถูกพักจากการไม่ได้ใช้งาน กด Restore ใน Supabase Dashboard";
+      btn.style.borderColor = "var(--dn)"; btn.style.color = "var(--dn)";
+    }else{
+      btn.textContent = "เข้าสู่ระบบ"; btn.title = "";
+      btn.style.borderColor = ""; btn.style.color = "";
+    }
+    return;
+  }
   btn.style.display="none"; box.style.display="";
   const name = (AUTH.profile && AUTH.profile.display_name) || (AUTH.user.email||"").split("@")[0];
   $("#avatar").textContent = (name[0]||"?").toUpperCase();
@@ -1285,7 +1302,14 @@ const AUTH_ERR = {
   "Email not confirmed":"ยังไม่ได้ยืนยันอีเมล กดลิงก์ในกล่องจดหมายก่อน",
   "Password should be at least 6 characters":"รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร"
 };
-const thErr = e => AUTH_ERR[String(e && e.message || e)] || String(e && e.message || e);
+const thErr = e => {
+  const m = String(e && e.message || e);
+  if(AUTH_ERR[m]) return AUTH_ERR[m];
+  if(/Failed to fetch|NetworkError|Load failed|ERR_/i.test(m))
+    return "ต่อเซิร์ฟเวอร์ไม่ได้ — ถ้าไม่ได้ใช้งานหลายวัน Supabase แผนฟรีจะพักโปรเจกต์อัตโนมัติ " +
+           "ให้เข้า Supabase Dashboard แล้วกด Restore project รอสัก 1-2 นาทีแล้วลองใหม่";
+  return m;
+};
 
 async function doAuth(){
   const email = $("#authEmail").value.trim();
