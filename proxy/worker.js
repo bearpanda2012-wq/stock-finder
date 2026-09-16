@@ -163,7 +163,31 @@ export default {
       }
     }
 
-    /* ---------- 3) ส่งต่อไปเว็บไทย (SET / SETTRADE) ---------- */
+    /* ---------- 3) แปลภาษา (เบราว์เซอร์เรียก Google Translate ตรงไม่ได้) ---------- */
+    if (request.method === "GET" && url.pathname === "/tr") {
+      const q = url.searchParams.get("q") || "";
+      const tl = (url.searchParams.get("tl") || "en").slice(0, 10);
+      const sl = (url.searchParams.get("sl") || "th").slice(0, 10);
+      if (!q) return json({ error: "ต้องระบุ q", text: "" }, 400, origin);
+      if (q.length > 4000) return json({ error: "ข้อความยาวเกินไป", text: "" }, 400, origin);
+      try {
+        const up = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(q)}`,
+          { headers: { "User-Agent": UA, "Accept": "application/json" },
+            cf: { cacheTtl: 86400, cacheEverything: true } }
+        );
+        if (!up.ok) return json({ error: "HTTP " + up.status, text: "" }, 200, origin);
+        const j = await up.json();
+        const text = (Array.isArray(j) && Array.isArray(j[0]))
+          ? j[0].map(x => (x && x[0]) ? x[0] : "").join("")
+          : "";
+        return json({ text }, 200, origin);
+      } catch (e) {
+        return json({ error: String(e && e.message || e), text: "" }, 200, origin);
+      }
+    }
+
+    /* ---------- 4) ส่งต่อไปเว็บไทย (SET / SETTRADE) ---------- */
     if (request.method === "GET" && url.pathname === "/fetch") {
       const target = url.searchParams.get("url") || "";
       let t;
