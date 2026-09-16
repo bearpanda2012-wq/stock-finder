@@ -181,6 +181,7 @@ tbody tr.sel{background:var(--acc-bg)}
 .lk:hover{border-color:var(--acc);color:var(--acc)}
 .lk::after{content:" ↗";font-size:9px;color:var(--tx3)}
 .note{color:var(--tx3);font-size:11px;margin-top:8px;line-height:1.5}
+#trStatus{color:var(--acc)}
 .rbar{display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--sunk);margin:4px 0 6px}
 .rbar i{display:block;height:100%}
 .rleg{display:flex;gap:12px;font-size:11.5px;color:var(--tx2);margin-bottom:12px;flex-wrap:wrap}
@@ -225,7 +226,6 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .cols label:hover{border-color:var(--acc)}
 .cols input{accent-color:var(--acc);margin:0}
 .cols label.lock{opacity:.5;cursor:not-allowed}
-/* แถบเลือกภาษาของคำอธิบายบริษัท */
 /* ---- ระบบสมาชิก ---- */
 .usermenu{position:relative}
 .avatar{width:20px;height:20px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;
@@ -271,6 +271,18 @@ tbody tr:hover .patg{border-color:#d0cec8}
   margin:6px 0;font-size:11px;line-height:1.6;overflow-x:auto;
   font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--tx)}
 
+/* ---- หน้าตั้งรหัสผ่านใหม่ ---- */
+.rschk{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--tx2);
+  margin:-4px 0 10px;cursor:pointer;user-select:none}
+.rschk input{width:14px;height:14px;accent-color:var(--acc);cursor:pointer}
+.pwm{margin:-5px 0 10px}
+.pwm .bar{height:5px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.pwm .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--dn);
+  transition:width .22s ease,background .22s ease}
+.pwm .lb{font-size:11px;color:var(--tx3);margin-top:5px;min-height:14px}
+.rsrule{font-size:11.5px;color:var(--tx3);line-height:1.7;margin:0 0 10px;padding-left:16px}
+.rsrule li.hit{color:var(--up)}
+
 /* ---- หน้าจัดการสมาชิก ---- */
 .dw.wide{width:min(620px,96vw)}
 .admbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
@@ -310,11 +322,6 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .gate .sp{flex:1}
 [data-theme="dark"] .gate{border-color:#3d3229}
 
-.trbar{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
-.trbar select{padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card);
-  color:var(--tx);font-size:11.5px;outline:none}
-.trbar select:focus{border-color:var(--acc)}
-.trbar #trStatus{font-size:11px}
 .biz{transition:opacity .15s}
 
 /* ---- ปรับป้ายสถานะให้อ่านง่ายในโหมดมืด ---- */
@@ -383,6 +390,7 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
           <button data-a="watch">⭐ รายการเฝ้าดู</button>
           <button data-a="admin" id="mAdmin" style="display:none">👤 จัดการสมาชิก</button>
           <button data-a="sync">☁ ซิงก์การตั้งค่าขึ้นคลาวด์</button>
+          <button data-a="pw">🔑 เปลี่ยนรหัสผ่าน</button>
           <button data-a="upgrade" id="mUpgrade">✦ อัปเกรดเป็น Pro</button>
           <button data-a="logout">ออกจากระบบ</button>
         </div>
@@ -481,7 +489,7 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
       <label class="fld"><span>อีเมล</span>
         <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com"></label>
       <label class="fld" id="pwWrap"><span>รหัสผ่าน</span>
-        <input type="password" id="authPw" autocomplete="current-password" placeholder="อย่างน้อย 6 ตัวอักษร"></label>
+        <input type="password" id="authPw" autocomplete="current-password" placeholder="อย่างน้อย 8 ตัวอักษร"></label>
       <label class="fld" id="nameWrap" style="display:none"><span>ชื่อที่แสดง</span>
         <input type="text" id="authName" placeholder="ไม่ใส่ก็ได้"></label>
       <div id="authMsg" class="amsg"></div>
@@ -491,6 +499,28 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
         <span class="sp"></span>
         <span class="mut" id="authHint"></span>
       </div>
+      </div>
+
+      <!-- ตั้งรหัสผ่านใหม่ (เปิดจากลิงก์ในอีเมล) -->
+      <div id="authReset" style="display:none">
+        <p class="sp1">ตั้งรหัสผ่านใหม่ให้บัญชี <b id="rsEmail">—</b></p>
+        <label class="fld"><span>รหัสผ่านใหม่</span>
+          <input type="password" id="rsPw1" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร"></label>
+        <div class="pwm"><div class="bar"><i id="rsBar"></i></div><div class="lb" id="rsLb"></div></div>
+        <ul class="rsrule">
+          <li id="rsR1">ยาวอย่างน้อย 8 ตัวอักษร</li>
+          <li id="rsR2">มีทั้งตัวอักษรและตัวเลข</li>
+        </ul>
+        <label class="fld"><span>พิมพ์รหัสผ่านใหม่อีกครั้ง</span>
+          <input type="password" id="rsPw2" autocomplete="new-password" placeholder="ให้ตรงกับด้านบน"></label>
+        <label class="rschk"><input type="checkbox" id="rsShow"><span>แสดงรหัสผ่าน</span></label>
+        <div id="rsMsg" class="amsg"></div>
+        <button class="btn pri" id="rsGo" style="width:100%;padding:11px;margin-top:4px">บันทึกรหัสผ่านใหม่</button>
+        <div class="arow">
+          <button class="linkbtn" id="rsCancel">ไว้ทีหลัง</button>
+          <span class="sp"></span>
+          <span class="mut">ลิงก์นี้ใช้ได้ครั้งเดียว</span>
+        </div>
       </div>
     </div>
   </div>
@@ -550,12 +580,6 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
     <div class="sec">
       <h3>คอลัมน์ที่แสดง</h3>
       <div class="cols" id="cfgCols"></div>
-    </div>
-    <div class="sec">
-      <h3>ภาษาของคำอธิบายบริษัท</h3>
-      <p style="margin:0 0 8px;font-size:12px;color:var(--tx2);line-height:1.6">
-        ภาษาเริ่มต้นเวลาเปิดดูหุ้นแต่ละตัว เปลี่ยนเฉพาะตัวใดตัวหนึ่งได้จากช่องเลือกภาษาใต้คำอธิบาย</p>
-      <div class="segs" id="cfgLang" style="flex-wrap:wrap"></div>
     </div>
 
     <div class="sec">
@@ -1167,20 +1191,56 @@ const TIERS = {
   pro:      {label:"PRO",      rows:200, markets:["thailand","america","crypto"], watch:200, screens:50},
   lifetime: {label:"LIFETIME", rows:200, markets:["thailand","america","crypto"], watch:999, screens:999}
 };
-const AUTH = { sb:null, user:null, profile:null, isAdmin:false, offline:false, watch:new Map() };
+const AUTH = { sb:null, user:null, profile:null, isAdmin:false, offline:false, recovery:false, watch:new Map() };
 const tierOf  = () => (AUTH.profile && TIERS[AUTH.profile.tier]) ? AUTH.profile.tier : "free";
 const limits  = () => TIERS[tierOf()];
 const authOn  = () => !!AUTH.sb;
 const signedIn= () => !!AUTH.user;
 
+/* URL ของหน้านี้แบบสะอาด ใช้เป็นปลายทางของลิงก์ในอีเมล
+   (ต้องตรงกับ Redirect URLs ที่ตั้งไว้ใน Supabase → Authentication → URL Configuration) */
+const siteUrl = () => location.origin + location.pathname;
+
+/* อ่านพารามิเตอร์จากลิงก์ในอีเมล — Supabase ส่งมาได้ทั้งใน hash (#) และ query (?)
+   ต้องอ่านก่อนสร้าง client เพราะ detectSessionInUrl จะล้าง hash ทิ้งทันทีที่ทำงานเสร็จ */
+function readAuthLink(){
+  const h = new URLSearchParams((location.hash||"").replace(/^#/,""));
+  const q = new URLSearchParams(location.search||"");
+  const get = k => h.get(k) || q.get(k);
+  return {
+    type:  get("type") || "",
+    error: get("error") || get("error_code") || "",
+    desc:  get("error_description") || ""
+  };
+}
+/* ลบร่องรอย token ออกจากแถบที่อยู่ กันเผลอแชร์ลิงก์และกันรีเฟรชแล้วเด้งซ้ำ */
+function cleanUrl(){
+  try{ history.replaceState(null, "", siteUrl()) }catch(e){}
+}
+
 function initAuth(){
   const c = window.SF_SUPABASE || {};
+  const link = readAuthLink();
+  if(link.type === "recovery") AUTH.recovery = true;
   if(!c.url || !c.anonKey){ AUTH.needSetup = "ยังไม่ได้ใส่ค่า Supabase"; paintAuth(); return }
   if(!window.supabase){ AUTH.needSetup = "โหลดไลบรารี Supabase ไม่สำเร็จ — ตรวจการเชื่อมต่ออินเทอร์เน็ต"; paintAuth(); return }
   try{
     AUTH.sb = window.supabase.createClient(c.url, c.anonKey, {auth:{persistSession:true, autoRefreshToken:true}});
   }catch(e){ AUTH.needSetup = "ค่า Supabase ไม่ถูกต้อง: " + (e.message||e); paintAuth(); return }
-  AUTH.sb.auth.onAuthStateChange((_e, session)=>{ onSession(session) });
+  // ลิงก์หมดอายุหรือถูกใช้ไปแล้ว — บอกตรงๆ แล้วให้ขอลิงก์ใหม่
+  if(link.error){
+    cleanUrl();
+    setTimeout(()=>{
+      openAuth(true); setAuthMode("in");
+      msg(/expired/i.test(link.error + link.desc)
+        ? "ลิงก์ตั้งรหัสผ่านหมดอายุหรือถูกใช้ไปแล้ว — กรอกอีเมลแล้วกด “ลืมรหัสผ่าน” เพื่อขอลิงก์ใหม่"
+        : (link.desc || link.error), "err");
+    }, 400);
+  }
+  AUTH.sb.auth.onAuthStateChange((ev, session)=>{
+    if(ev === "PASSWORD_RECOVERY"){ AUTH.recovery = true; onSession(session); openAuth(true); return }
+    onSession(session);
+  });
   AUTH.sb.auth.getSession()
     .then(({data})=>onSession(data && data.session))
     .catch(e=>{ AUTH.offline = true; paintAuth(); console.warn("supabase unreachable", e) });
@@ -1201,6 +1261,8 @@ async function onSession(session){
     AUTH.profile = null; AUTH.isAdmin = false; AUTH.watch.clear();
   }
   paintAuth();
+  // มาจากลิงก์ "ลืมรหัสผ่าน" — เด้งหน้าตั้งรหัสใหม่ให้เลย
+  if(AUTH.recovery && AUTH.user && !$("#authModal").classList.contains("on")) openAuth(true);
   // ตอนเปิดหน้า ตารางมักโหลดเสร็จก่อน Supabase ยืนยันตัวตน
   // ถ้าสิทธิ์ที่ได้จริงต่างจากตอนดึงข้อมูล ให้ดึงใหม่ให้ตรงระดับสมาชิก
   if(S.ranTier !== undefined && S.ranTier !== null && S.ranTier !== tierOf()){
@@ -1256,14 +1318,17 @@ let authMode = "in";
 function openAuth(on){
   $("#authModal").classList.toggle("on", on);
   $("#authov").classList.toggle("on", on);
-  if(!on) return;
+  // ปิดกล่องแล้วเลิกโหมดตั้งรหัสใหม่ ไม่งั้นครั้งหน้าจะเด้งหน้าเดิมซ้ำ
+  if(!on){ if(AUTH.recovery){ AUTH.recovery=false; cleanUrl() } return }
   if(!authOn()){ showSetup(); return }
-  $("#authForm").style.display = ""; $("#authSetup").style.display = "none";
+  if(AUTH.recovery){ showReset(); return }
+  $("#authForm").style.display = ""; $("#authSetup").style.display = "none"; $("#authReset").style.display = "none";
   setAuthMode("in"); setTimeout(()=>$("#authEmail").focus(), 60);
 }
 function showSetup(){
   $("#authTitle").textContent = "ยังไม่ได้เปิดระบบสมาชิก";
   $("#authForm").style.display = "none";
+  $("#authReset").style.display = "none";
   const box = $("#authSetup");
   box.style.display = "";
   box.innerHTML = `
@@ -1305,6 +1370,16 @@ const AUTH_ERR = {
 const thErr = e => {
   const m = String(e && e.message || e);
   if(AUTH_ERR[m]) return AUTH_ERR[m];
+  if(/should be different from the old password|same.?password/i.test(m))
+    return "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม";
+  if(/at least (\d+) characters/i.test(m))
+    return "รหัสผ่านต้องยาวอย่างน้อย " + m.match(/at least (\d+) characters/i)[1] + " ตัวอักษร";
+  if(/Auth session missing|session_not_found|JWT expired|invalid claim/i.test(m))
+    return "ลิงก์หมดอายุหรือถูกใช้ไปแล้ว — กด “ลืมรหัสผ่าน” เพื่อขอลิงก์ใหม่";
+  if(/For security purposes|rate limit|too many requests/i.test(m))
+    return "ขอลิงก์ถี่เกินไป รอสักครู่แล้วลองใหม่";
+  if(/Password.*(weak|pwned|compromised)/i.test(m))
+    return "รหัสผ่านนี้คาดเดาง่ายเกินไป ลองใช้รหัสที่ยาวขึ้นและผสมตัวเลข";
   if(/Failed to fetch|NetworkError|Load failed|ERR_/i.test(m))
     return "ต่อเซิร์ฟเวอร์ไม่ได้ — ถ้าไม่ได้ใช้งานหลายวัน Supabase แผนฟรีจะพักโปรเจกต์อัตโนมัติ " +
            "ให้เข้า Supabase Dashboard แล้วกด Restore project รอสัก 1-2 นาทีแล้วลองใหม่";
@@ -1322,7 +1397,7 @@ async function doAuth(){
       if(error) throw error;
       msg("ส่งลิงก์ไปที่อีเมลแล้ว เปิดลิงก์เพื่อเข้าสู่ระบบ","ok");
     }else if(authMode==="up"){
-      if(pw.length < 6) throw new Error("Password should be at least 6 characters");
+      if(pw.length < PW_MIN) throw new Error("Password should be at least " + PW_MIN + " characters");
       const {data, error} = await AUTH.sb.auth.signUp({
         email, password: pw,
         options:{ data:{display_name: $("#authName").value.trim() || null}, emailRedirectTo: location.href }
@@ -1337,6 +1412,65 @@ async function doAuth(){
     }
   }catch(e){ msg(thErr(e),"err") }
   finally{ go.disabled=false }
+}
+
+/* ---------- ตั้งรหัสผ่านใหม่ ---------- */
+const PW_MIN = 8;
+function rsMsg(text, kind){
+  const el=$("#rsMsg"); if(!el) return;
+  el.textContent = text || "";
+  el.className = "amsg" + (kind ? " "+kind : "");
+}
+function showReset(){
+  $("#authTitle").textContent = "ตั้งรหัสผ่านใหม่";
+  $("#authForm").style.display  = "none";
+  $("#authSetup").style.display = "none";
+  $("#authReset").style.display = "";
+  $("#rsEmail").textContent = (AUTH.user && AUTH.user.email) || "ของคุณ";
+  $("#rsPw1").value = ""; $("#rsPw2").value = "";
+  $("#rsShow").checked = false; rsShowPw(false);
+  rsMsg(""); pwMeter();
+  setTimeout(()=>$("#rsPw1").focus(), 60);
+}
+/* วัดความแข็งแรงคร่าวๆ: ความยาว + ความหลากหลายของชนิดตัวอักษร */
+function pwScore(p){
+  p = p || "";
+  if(!p) return 0;
+  let s = Math.min(p.length, 16) * 3;                    // ยาวขึ้น = ดีขึ้น สูงสุด 48
+  const kinds = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter(re=>re.test(p)).length;
+  s += (kinds - 1) * 13;                                  // ผสมหลายชนิด สูงสุด +39
+  if(/^(.)\1+$/.test(p)) s = 10;                          // ตัวเดิมซ้ำทั้งหมด
+  if(/^(123456|password|qwerty|111111|abc123|admin)/i.test(p)) s = Math.min(s, 20);
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+function pwMeter(){
+  const p = $("#rsPw1").value, s = pwScore(p);
+  const bar = $("#rsBar"), lb = $("#rsLb");
+  bar.style.width = s + "%";
+  bar.style.background = s < 40 ? "var(--dn)" : s < 70 ? "#e0a10b" : "var(--up)";
+  lb.textContent = !p ? "" : s < 40 ? "อ่อน" : s < 70 ? "พอใช้" : "แข็งแรง";
+  $("#rsR1").classList.toggle("hit", p.length >= PW_MIN);
+  $("#rsR2").classList.toggle("hit", /[a-zA-Z]/.test(p) && /[0-9]/.test(p));
+}
+function rsShowPw(on){
+  const t = on ? "text" : "password";
+  $("#rsPw1").type = t; $("#rsPw2").type = t;
+}
+async function doReset(){
+  const p1 = $("#rsPw1").value, p2 = $("#rsPw2").value;
+  if(p1.length < PW_MIN) return rsMsg(`รหัสผ่านต้องยาวอย่างน้อย ${PW_MIN} ตัวอักษร`, "err");
+  if(p1 !== p2)          return rsMsg("รหัสผ่านสองช่องไม่ตรงกัน", "err");
+  if(!signedIn())        return rsMsg("ลิงก์หมดอายุแล้ว — ปิดหน้านี้แล้วกด “ลืมรหัสผ่าน” เพื่อขอลิงก์ใหม่", "err");
+  const go = $("#rsGo"); go.disabled = true; rsMsg("กำลังบันทึก…");
+  try{
+    const {error} = await AUTH.sb.auth.updateUser({password: p1});
+    if(error) throw error;
+    AUTH.recovery = false; cleanUrl();
+    rsMsg("เปลี่ยนรหัสผ่านเรียบร้อย เข้าสู่ระบบให้แล้ว", "ok");
+    $("#rsPw1").value = ""; $("#rsPw2").value = "";
+    setTimeout(()=>openAuth(false), 1400);
+  }catch(e){ rsMsg(thErr(e), "err") }
+  finally{ go.disabled = false }
 }
 
 /* ---------- รายการเฝ้าดู ---------- */
@@ -1652,15 +1786,15 @@ async function fetchTimed(url, ms){
 
 // แปลข้อความก้อนเดียว (หลายบรรทัด) — คืน null ถ้าเจ้านั้นใช้ไม่ได้
 const TR_PROVIDERS = [
-  { name:"google-gtx", batch:true, run: async (text, lang)=>{
-      const r = await fetchTimed(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=th&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(text)}`, 8000);
+  { name:"google-gtx", batch:true, run: async (text, lang, sl)=>{
+      const r = await fetchTimed(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl||"th")}&tl=${encodeURIComponent(lang)}&dt=t&q=${encodeURIComponent(text)}`, 8000);
       if(!r) return null;
       const j = await r.json().catch(()=>null);
       if(!j || !Array.isArray(j[0])) return null;
       return j[0].map(x=>x && x[0] ? x[0] : "").join("");
   }},
-  { name:"google-dict", batch:true, run: async (text, lang)=>{
-      const r = await fetchTimed(`https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=th&tl=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`, 8000);
+  { name:"google-dict", batch:true, run: async (text, lang, sl)=>{
+      const r = await fetchTimed(`https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=${encodeURIComponent(sl||"th")}&tl=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`, 8000);
       if(!r) return null;
       const j = await r.json().catch(()=>null);
       if(!j) return null;
@@ -1671,15 +1805,15 @@ const TR_PROVIDERS = [
       }
       return null;
   }},
-  { name:"proxy", batch:true, run: async (text, lang)=>{
+  { name:"proxy", batch:true, run: async (text, lang, sl)=>{
       const base = proxyBase(); if(!base) return null;
-      const r = await fetchTimed(`${base}/tr?tl=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`, 9000);
+      const r = await fetchTimed(`${base}/tr?sl=${encodeURIComponent(sl||"th")}&tl=${encodeURIComponent(lang)}&q=${encodeURIComponent(text)}`, 9000);
       if(!r) return null;
       const j = await r.json().catch(()=>null);
       return (j && typeof j.text === "string") ? j.text : null;
   }},
-  { name:"mymemory", batch:false, run: async (text, lang)=>{
-      const r = await fetchTimed(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=th|${encodeURIComponent(String(lang).split("-")[0])}`, 7000);
+  { name:"mymemory", batch:false, run: async (text, lang, sl)=>{
+      const r = await fetchTimed(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent((sl||"th")==="auto"?"en":(sl||"th"))}|${encodeURIComponent(String(lang).split("-")[0])}`, 7000);
       if(!r) return null;
       const j = await r.json().catch(()=>null);
       const t = j && j.responseData && j.responseData.translatedText;
@@ -1688,11 +1822,11 @@ const TR_PROVIDERS = [
 ];
 let TR_PICKED = null;   // จำเจ้าที่ใช้ได้ จะได้ไม่ต้องลองใหม่ทุกครั้ง
 
-async function trRun(text, lang){
+async function trRun(text, lang, sl){
   const order = TR_PICKED ? [TR_PICKED, ...TR_PROVIDERS.filter(p=>p!==TR_PICKED)] : TR_PROVIDERS;
   for(const p of order){
     if(!p.batch && text.includes("\n")) continue;      // เจ้าที่แปลทีละบรรทัดเท่านั้น
-    const out = await p.run(text, lang);
+    const out = await p.run(text, lang, sl);
     if(out && out.trim()){ TR_PICKED = p; return out }
   }
   return null;
@@ -1794,7 +1928,7 @@ const ACCENTS = [
   ["#b8623a","ดินเผา"], ["#2f6fb8","น้ำเงิน"], ["#2e8b62","เขียว"],
   ["#8a5cc4","ม่วง"], ["#c2436b","ชมพู"], ["#c08a1e","ทอง"], ["#4a4a52","เทาเข้ม"]
 ];
-const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null, avkey:"", proxy:"", lang:"th", uiLang:"th"};
+const DEF_CFG = {theme:"light", accent:"#b8623a", dense:"normal", font:"m", radius:"md", cols:null, avkey:"", proxy:"", uiLang:"th"};
 let CFG = Object.assign({}, DEF_CFG, load("cfg", {}));
 
 function applyCfg(){
@@ -1849,7 +1983,6 @@ function buildCfg(){
   segs($("#cfgDense"), [["compact","กระชับ"],["normal","ปกติ"],["roomy","โปร่ง"]], CFG.dense, v=>CFG.dense=v);
   segs($("#cfgFont"),  [["s","เล็ก"],["m","กลาง"],["l","ใหญ่"]], CFG.font, v=>CFG.font=v);
   segs($("#cfgRadius"),[["sharp","เหลี่ยม"],["md","ปกติ"],["round","มน"]], CFG.radius, v=>CFG.radius=v);
-  segs($("#cfgLang"), LANGS, CFG.lang || "th", v=>CFG.lang=v);
   segs($("#cfgUiLang"), UI_LANGS, CFG.uiLang || "th", v=>{
     CFG.uiLang = v; save("cfg", CFG);
     if(v === "th") location.reload();     // กลับต้นฉบับไทยให้สะอาดที่สุด
@@ -2554,41 +2687,31 @@ async function translateTo(text, lang){
   return null;
 }
 
-/* ตัวเลือกภาษาใต้กล่องคำอธิบาย — เปลี่ยนแล้วแปลให้ทันที */
-function mountTranslator(sym, original){
+/* แปลคำอธิบายบริษัทตามภาษาที่ตั้งไว้ในหัวข้อ "ภาษาของหน้าเว็บ" */
+async function autoTranslateBiz(sym, original){
+  const lang = CFG.uiLang || "th";
+  if(lang === "th" && isThaiText(original)) return;      // เป็นไทยอยู่แล้ว
   const body = document.getElementById("bizbody");
-  const sel  = document.getElementById("bizLang");
   const st   = document.getElementById("trStatus");
-  if(!body || !sel) return;
+  if(!body) return;
 
-  const cacheKey = l => `tr_${sym}_${l}`;
-  const setStatus = t => { if(st) st.textContent = t || "" };
+  const key = `tr_${sym}_${lang}`;
+  let cached = null;
+  try{ cached = sessionStorage.getItem(key) }catch(e){}
+  if(cached){ body.textContent = cached; if(st) st.textContent = "แปลอัตโนมัติ"; return }
 
-  async function apply(lang){
-    if(lang === "src"){ body.textContent = original; setStatus(""); return }
-    let cached = null;
-    try{ cached = sessionStorage.getItem(cacheKey(lang)) }catch(e){}
-    if(cached){ body.textContent = cached; setStatus("แปลโดย Google Translate"); return }
-    setStatus("กำลังแปล…");
-    body.style.opacity = ".55";
-    const out = await translateTo(original, lang);
-    body.style.opacity = "";
-    if(curSym !== sym) return;
-    if(out){
-      try{ sessionStorage.setItem(cacheKey(lang), out) }catch(e){}
-      body.textContent = out;
-      setStatus("แปลโดย Google Translate");
-    }else{
-      body.textContent = original;
-      setStatus("แปลไม่สำเร็จ — แสดงต้นฉบับ");
-    }
+  if(st) st.textContent = "กำลังแปล…";
+  body.style.opacity = ".55";
+  const out = await trRun(original, lang, "auto");
+  body.style.opacity = "";
+  if(curSym !== sym) return;
+  if(out && out.trim()){
+    try{ sessionStorage.setItem(key, out.trim()) }catch(e){}
+    body.textContent = out.trim();
+    if(st) st.textContent = "แปลอัตโนมัติ";
+  }else{
+    if(st) st.textContent = "แปลไม่สำเร็จ — แสดงต้นฉบับ";
   }
-
-  sel.onchange = e => { CFG.lang = e.target.value; save("cfg", CFG); apply(CFG.lang) };
-  const want = CFG.lang || "th";
-  sel.value = want;
-  // ถ้าต้นฉบับเป็นภาษาที่ต้องการอยู่แล้ว ไม่ต้องแปล
-  if(!(want === "th" && isThaiText(original)) && want !== "src") apply(want);
 }
 
 async function loadBizDesc(r, elId){
@@ -2618,20 +2741,15 @@ async function loadBizDesc(r, elId){
   const srcLabel = hit.src === "set" ? "ตลาดหลักทรัพย์แห่งประเทศไทย (SET)"
                  : hit.src === "alphavantage" ? "ข้อมูลบริษัทอย่างเป็นทางการ"
                  : `วิกิพีเดีย${hit.lang==="en"?" (อังกฤษ)":""} · ${hit.title}`;
-  box.innerHTML = `<div class="biz" id="bizbody">${escapeHtml(hit.extract)}</div>
-    <div class="trbar">
-      <label for="bizLang">ภาษา</label>
-      <select id="bizLang">${LANGS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select>
-      <span id="trStatus" class="mut"></span>
-    </div>
-    <div class="note">ที่มา: ${escapeHtml(srcLabel)}</div>
+  box.innerHTML = `<div class="biz" id="bizbody" data-notr>${escapeHtml(hit.extract)}</div>
+    <div class="note">ที่มา: ${escapeHtml(srcLabel)} <span id="trStatus"></span></div>
     <div class="links" style="margin-top:9px">
       ${site ? `<a class="lk pri" href="${escapeHtml(site)}" target="_blank" rel="noopener noreferrer">เว็บไซต์ทางการ</a>` : ""}
       ${hit.url ? `<a class="lk" href="${escapeHtml(hit.url)}" target="_blank" rel="noopener noreferrer">อ่านต่อที่วิกิพีเดีย</a>` : ""}
       <a class="lk" href="https://th.investing.com/search/?q=${encodeURIComponent(tkr)}" target="_blank" rel="noopener noreferrer">Investing.com</a>
       <a class="lk" href="https://www.google.com/search?q=${encodeURIComponent((r.description||tkr)+" บริษัท")}" target="_blank" rel="noopener noreferrer">ค้นหา Google</a>
     </div>`;
-  mountTranslator(r.symbol, hit.extract);
+  autoTranslateBiz(r.symbol, hit.extract);
 }
 
 /* ---------- สรุปคุณภาพกิจการแบบภาพรวม ---------- */
@@ -2957,11 +3075,19 @@ $("#authForgot").onclick = async ()=>{
   const email=$("#authEmail").value.trim();
   if(!email) return msg("กรอกอีเมลก่อน แล้วกดลืมรหัสผ่านอีกครั้ง","err");
   try{
-    const {error} = await AUTH.sb.auth.resetPasswordForEmail(email, {redirectTo: location.href});
+    const {error} = await AUTH.sb.auth.resetPasswordForEmail(email, {redirectTo: siteUrl()});
     if(error) throw error;
-    msg("ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว","ok");
+    msg("ส่งลิงก์ไปที่อีเมลแล้ว — เปิดลิงก์นั้นจะเข้าหน้าตั้งรหัสผ่านใหม่ (ถ้าไม่เจอ ลองดูในเมลขยะ)","ok");
   }catch(e){ msg(thErr(e),"err") }
 };
+/* ---- หน้าตั้งรหัสผ่านใหม่ ---- */
+$("#rsGo").onclick     = doReset;
+$("#rsCancel").onclick = ()=>{ AUTH.recovery=false; cleanUrl(); openAuth(false) };
+$("#rsShow").onchange  = e=>rsShowPw(e.target.checked);
+$("#rsPw1").addEventListener("input", pwMeter);
+["rsPw1","rsPw2"].forEach(id=>{
+  $("#"+id).addEventListener("keydown", e=>{ if(e.key==="Enter") doReset() });
+});
 $("#userBtn").onclick = e=>{ e.stopPropagation(); $("#userMenu").classList.toggle("on") };
 document.addEventListener("click", ()=>{ const m=$("#userMenu"); if(m) m.classList.remove("on") });
 $("#userMenu").onclick = async e=>{
@@ -2972,6 +3098,7 @@ $("#userMenu").onclick = async e=>{
   else if(a==="watch"){ openWl(true) }
   else if(a==="admin"){ openAdm(true) }
   else if(a==="sync"){ const ok=await pushCloudCfg(); alert(ok?"ซิงก์การตั้งค่าขึ้นคลาวด์แล้ว":"ซิงก์ไม่สำเร็จ") }
+  else if(a==="pw"){ AUTH.recovery=true; openAuth(true) }
   else if(a==="upgrade"){ const u=(window.SF_SUPABASE||{}).upgradeUrl; if(u) window.open(u,"_blank","noopener") }
 };
 $("#admX").onclick   = ()=>openAdm(false);
