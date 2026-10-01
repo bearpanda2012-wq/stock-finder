@@ -2,9 +2,19 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ค้นหาหุ้นอัจฉริยะ</title>
 <meta name="description" content="สกรีนเนอร์หุ้นไทย หุ้นสหรัฐฯ และคริปโต พร้อมระบบให้คะแนน ข้อมูลสดจาก TradingView">
+<!-- ติดตั้งเป็นแอป (PWA) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ค้นหาหุ้น">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -58,6 +68,37 @@ input,select{font-family:inherit;font-size:inherit}
 .iconbtn{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:6px 13px;
   font-size:12px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px;box-shadow:var(--sh)}
 .iconbtn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* ---- เว็บแอป (PWA) ---- */
+.wrap{padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right));
+  padding-bottom:max(16px, env(safe-area-inset-bottom))}
+.topbar{padding-top:env(safe-area-inset-top)}
+.iconbtn.inst{border-color:var(--acc);color:var(--acc);background:var(--acc-bg);font-weight:600}
+.iconbtn.inst:hover{background:var(--acc);color:var(--acc-tx)}
+.offpill{display:none;font-size:11px;font-weight:600;color:var(--dn);border:1px solid var(--dn);
+  border-radius:99px;padding:2px 9px}
+body.offline .offpill{display:inline-block}
+.toast{position:fixed;left:50%;bottom:max(18px, calc(env(safe-area-inset-bottom) + 12px));
+  transform:translate(-50%, 140%);z-index:90;display:flex;align-items:center;gap:12px;
+  background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:12px;
+  padding:10px 12px 10px 16px;box-shadow:var(--sh2);font-size:12.5px;max-width:calc(100vw - 24px);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.toast.on{transform:translate(-50%, 0)}
+.toast .btn{padding:6px 12px;font-size:12px}
+.iosgrid{display:grid;grid-template-columns:28px 1fr;gap:10px 10px;align-items:center;font-size:13px;margin:4px 0 14px}
+.iosgrid .n{width:24px;height:24px;border-radius:50%;background:var(--acc-bg);color:var(--acc);
+  display:grid;place-items:center;font-weight:700;font-size:12px}
+.iosgrid svg{vertical-align:-3px}
+@media (max-width:640px){
+  .wrap{padding-left:max(10px, env(safe-area-inset-left));padding-right:max(10px, env(safe-area-inset-right))}
+  .hd{gap:8px}
+  .hd .sub{display:none}
+  .iconbtn{padding:6px 10px}
+}
+@media (display-mode: standalone){
+  .hd h1{font-size:17px}
+  #installBtn{display:none !important}
+}
 
 .mkt{display:flex;gap:3px;background:var(--sunk);padding:3px;border-radius:10px;width:fit-content;
   border:1px solid var(--line)}
@@ -378,7 +419,9 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
         <button data-m="crypto">คริปโต</button>
       </div>
       <span class="sp"></span>
+      <span class="offpill" title="ไม่มีอินเทอร์เน็ต — ข้อมูลที่เห็นอาจไม่ใช่ล่าสุด">ออฟไลน์</span>
       <span class="sub" id="clock"></span>
+      <button class="iconbtn inst" id="installBtn" style="display:none" title="ติดตั้งเป็นแอปบนเครื่องนี้">⤓ ติดตั้งแอป</button>
       <button class="iconbtn" id="reload">↻ โหลดใหม่</button>
       <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง / มืด"></button>
       <button class="iconbtn" id="opencfg">⚙ ปรับแต่ง</button>
@@ -524,6 +567,37 @@ select{background:var(--card);color:var(--tx);border-color:var(--line)}
       </div>
     </div>
   </div>
+</div>
+
+<!-- วิธีติดตั้งบน iPhone / iPad (Safari ไม่มีปุ่มติดตั้งอัตโนมัติ) -->
+<div class="ov" id="iosov"></div>
+<div class="modal" id="iosModal">
+  <div class="mbox">
+    <div class="mtop">
+      <h2>ติดตั้งบน iPhone / iPad</h2>
+      <button class="x" id="iosX">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="iosgrid">
+        <span class="n">1</span>
+        <span>เปิดหน้านี้ด้วย <b>Safari</b> แล้วแตะปุ่มแชร์
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+          ที่แถบล่าง</span>
+        <span class="n">2</span>
+        <span>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b> (Add to Home Screen)</span>
+        <span class="n">3</span>
+        <span>แตะ <b>เพิ่ม</b> — ไอคอน “ค้นหาหุ้น” จะอยู่บนหน้าจอโฮม เปิดเต็มจอเหมือนแอปทั่วไป</span>
+      </div>
+      <button class="btn pri" id="iosOk" style="width:100%;padding:10px">เข้าใจแล้ว</button>
+    </div>
+  </div>
+</div>
+
+<!-- แถบแจ้งเตือนเล็กด้านล่าง (มีเวอร์ชันใหม่ / ติดตั้งสำเร็จ) -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastTx"></span>
+  <button class="btn pri" id="toastGo" style="display:none"></button>
+  <button class="x" id="toastX" aria-label="ปิด">✕</button>
 </div>
 
 <!-- จัดการสมาชิก (เฉพาะแอดมิน) -->
@@ -1159,9 +1233,32 @@ async function run(filters, note){
     $("#ai").innerHTML = gateBanner() + $("#ai").innerHTML;
     render();
     if(S.rows.length) $("#ai").innerHTML += overview();
-  }catch(e){ console.error(e); st.textContent=""; showError(e);
-    $("#tb").innerHTML = `<tr><td class="empty" colspan="16">ไม่มีข้อมูล</td></tr>`;
+    saveSnap(S.market, out.total, S.rows);
+  }catch(e){ console.error(e); st.textContent="";
+    // เน็ตหลุด → ใช้ผลชุดล่าสุดที่เคยโหลดสำเร็จของตลาดนี้แทนหน้าว่าง
+    const snap = loadSnap(S.market);
+    if(snap && snap.rows.length){
+      S.rows = snap.rows; S.sortKey="_score"; S.sortDir="desc";
+      const when = new Date(snap.t).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+      st.innerHTML = `<span style="color:var(--dn)">⚠ โหลดข้อมูลสดไม่ได้</span> · แสดงชุดล่าสุดที่บันทึกไว้เมื่อ <b>${escapeHtml(when)}</b> (${S.rows.length} อันดับ)`;
+      render();
+    }else{
+      showError(e);
+      $("#tb").innerHTML = `<tr><td class="empty" colspan="16">ไม่มีข้อมูล</td></tr>`;
+    }
   }finally{ $("#go").disabled=$("#go2").disabled=false }
+}
+
+/* เก็บผลคัดกรองล่าสุดของแต่ละตลาดไว้ในเครื่อง ใช้ตอนออฟไลน์ */
+function saveSnap(market, total, rows){
+  try{ localStorage.setItem("sf_snap_"+market, JSON.stringify({t:Date.now(), total, rows})) }
+  catch(e){ /* พื้นที่เต็มก็ข้ามไป ไม่กระทบการใช้งาน */ }
+}
+function loadSnap(market){
+  try{
+    const s = JSON.parse(localStorage.getItem("sf_snap_"+market) || "null");
+    return (s && Array.isArray(s.rows)) ? s : null;
+  }catch(e){ return null }
 }
 
 // สรุปภาพรวมจากตัวเลขจริง (ไม่ใช้ AI)
@@ -1936,6 +2033,10 @@ function applyCfg(){
   const dark = CFG.theme === "dark" ||
     (CFG.theme === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
   root.setAttribute("data-theme", dark ? "dark" : "light");
+  // แถบสถานะของแอปที่ติดตั้งแล้ว ให้สีตามธีมที่เลือกจริง ไม่ใช่ตามระบบ
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    m.setAttribute("content", dark ? "#16161a" : "#f6f6f3"); m.removeAttribute("media");
+  });
   root.style.setProperty("--acc", CFG.accent);
   // สีพื้นอ่อนของ accent + สีตัวอักษรบน accent
   root.style.setProperty("--acc-bg", dark ? mixHex(CFG.accent, "#16161a", .82) : mixHex(CFG.accent, "#ffffff", .90));
@@ -3116,7 +3217,7 @@ $("#cfgov").onclick = ()=>openCfg(false);
 $("#cfgReset").onclick = ()=>{ CFG = Object.assign({}, DEF_CFG); applyCfg(); buildCfg(); render() };
 if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", ()=>{ if(CFG.theme==="auto"){ applyCfg(); repaint() } });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false); openAuth(false); openWl(false); openAdm(false) } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); openCfg(false); openAuth(false); openWl(false); openAdm(false); openIOS(false) } });
 
 // นาฬิกาบนหัวเรื่อง
 (function tick(){
@@ -3125,6 +3226,103 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ openDw(false); o
   el.textContent = d.toLocaleString("th-TH",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
   setTimeout(tick, 30000);
 })();
+
+/* ================= เว็บแอป (PWA) =================
+   - ปุ่ม "ติดตั้งแอป": Chrome/Edge/Android ใช้ beforeinstallprompt
+                        iPhone/iPad ไม่มี event นี้ → เปิดกล่องสอนวิธี Add to Home Screen
+   - Service Worker: เปิดได้ตอนเน็ตหลุด + แจ้งเมื่อมีเวอร์ชันใหม่
+================================================= */
+const PWA = { prompt:null, reg:null };
+const isStandalone = () =>
+  (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);     // iPadOS แจ้งตัวเป็น Mac
+
+let toastTimer = null;
+function toast(text, action, onAction, ms){
+  const t=$("#toast"), go=$("#toastGo");
+  $("#toastTx").textContent = text;
+  go.style.display = action ? "" : "none";
+  go.textContent = action || "";
+  go.onclick = action ? ()=>{ hideToast(); onAction && onAction() } : null;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  if(ms) toastTimer = setTimeout(hideToast, ms);
+}
+function hideToast(){ $("#toast").classList.remove("on") }
+
+function paintInstall(){
+  const b = $("#installBtn"); if(!b) return;
+  // แสดงเมื่อเบราว์เซอร์พร้อมติดตั้ง หรือเป็น iOS ที่ยังไม่ได้ติดตั้ง
+  b.style.display = (!isStandalone() && (PWA.prompt || isIOS())) ? "" : "none";
+}
+function openIOS(on){
+  $("#iosModal").classList.toggle("on", on);
+  $("#iosov").classList.toggle("on", on);
+}
+async function doInstall(){
+  if(PWA.prompt){
+    PWA.prompt.prompt();
+    try{ await PWA.prompt.userChoice }catch(e){}
+    PWA.prompt = null; paintInstall();               // prompt ใช้ได้ครั้งเดียว
+  }else if(isIOS()){
+    openIOS(true);
+  }
+}
+
+function initPWA(){
+  window.addEventListener("beforeinstallprompt", e=>{
+    e.preventDefault();                                // เก็บไว้ให้กดจากปุ่มของเราเอง
+    PWA.prompt = e; paintInstall();
+  });
+  window.addEventListener("appinstalled", ()=>{
+    PWA.prompt = null; paintInstall();
+    toast("ติดตั้งแล้ว — เปิดจากไอคอน “ค้นหาหุ้น” ได้เลย", null, null, 4000);
+  });
+
+  // สถานะออนไลน์/ออฟไลน์
+  const net = ()=>{
+    document.body.classList.toggle("offline", !navigator.onLine);
+    if(!navigator.onLine) toast("ออฟไลน์อยู่ — แสดงข้อมูลชุดล่าสุดที่โหลดไว้", null, null, 4000);
+  };
+  window.addEventListener("online",  ()=>{ net(); toast("กลับมาออนไลน์แล้ว", "โหลดข้อมูลใหม่", ()=>run(readManual()), 6000) });
+  window.addEventListener("offline", net);
+  if(!navigator.onLine) net();
+
+  paintInstall();
+
+  // Service Worker ใช้ได้เฉพาะ https หรือ localhost (เปิดจาก file:// จะข้ามไปเงียบๆ)
+  if(!("serviceWorker" in navigator) || !/^https:|^http:\/\/(localhost|127\.0\.0\.1)/.test(location.href)) return;
+  // เข้าเว็บครั้งแรก SW จะ claim หน้าเอง (เกิด controllerchange) — ห้ามรีโหลดตอนนั้น
+  // รีโหลดเฉพาะตอนผู้ใช้กด "อัปเดต" จากเวอร์ชันเดิมที่คุมหน้าอยู่แล้ว
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    if(!hadController || reloading) return; reloading = true; location.reload();
+  });
+  navigator.serviceWorker.register("sw.js").then(reg=>{
+    PWA.reg = reg;
+    const offer = w => toast("มีเวอร์ชันใหม่ของแอป", "อัปเดต", ()=>w.postMessage("skipWaiting"));
+    if(reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+    reg.addEventListener("updatefound", ()=>{
+      const w = reg.installing; if(!w) return;
+      w.addEventListener("statechange", ()=>{
+        // มี controller อยู่แล้ว = ไม่ใช่การติดตั้งครั้งแรก → เป็นเวอร์ชันใหม่จริง
+        if(w.state === "installed" && navigator.serviceWorker.controller) offer(w);
+      });
+    });
+    // แอปที่เปิดค้างไว้นานๆ ให้เช็กอัปเดตทุก 30 นาที และทุกครั้งที่กลับมาที่แอป
+    setInterval(()=>reg.update().catch(()=>{}), 30*60*1000);
+    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) reg.update().catch(()=>{}) });
+  }).catch(e=>console.warn("sw register failed", e));
+}
+
+$("#installBtn").onclick = doInstall;
+$("#iosX").onclick  = ()=>openIOS(false);
+$("#iosov").onclick = ()=>openIOS(false);
+$("#iosOk").onclick = ()=>openIOS(false);
+$("#toastX").onclick = hideToast;
 
 /* ================= boot ================= */
 $("#legend").innerHTML =
@@ -3136,6 +3334,7 @@ applyCfg();
 watchI18n();
 if((CFG.uiLang||"th") !== "th") applyI18n();
 initAuth();
+initPWA();
 buildFilters(); buildTech(); buildSectors(); buildChips(); buildWeights(); run([]);
 </script>
 </body>
