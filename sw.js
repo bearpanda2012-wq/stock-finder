@@ -8,7 +8,7 @@
  *
  * ออกเวอร์ชันใหม่: เปลี่ยน VERSION ด้านล่าง → ผู้ใช้จะเห็นแถบ "มีเวอร์ชันใหม่"
  */
-const VERSION = "sf-v1";
+const VERSION = "sf-v2";
 const SHELL = `${VERSION}-shell`;
 const LIBS  = `${VERSION}-libs`;
 
@@ -26,7 +26,7 @@ const CDN_LIBS = [
   "https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
 ];
-const LIB_HOSTS = new Set(["cdn.jsdelivr.net"]);
+const LIB_HOSTS = new Set(["cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
