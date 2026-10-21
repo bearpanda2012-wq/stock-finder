@@ -444,3 +444,14 @@ begin
 end $$;
 revoke execute on function public.apply_payment(text) from public, anon, authenticated;
 grant execute on function public.apply_payment(text) to service_role;
+
+
+-- ============================================================
+-- 12) ลบข้อมูลตามระยะเวลาที่ระบุในนโยบายความเป็นส่วนตัว (ทุกวัน 03:30 น.)
+-- ============================================================
+select cron.unschedule(jobid) from cron.job where jobname = 'retention-cleanup';
+select cron.schedule('retention-cleanup', '30 20 * * *', $$
+  delete from public.ai_notes where note_date < current_date - 90;
+  delete from public.alert_log where sent_at < now() - interval '90 days';
+  update public.payments set status = 'expired' where status = 'pending' and created_at < now() - interval '1 day';
+$$);
