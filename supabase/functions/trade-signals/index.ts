@@ -23,6 +23,8 @@ type Row = Record<string, any>;
 const COLS = ["name", "description", "close", "high", "low", "ATR", "RSI", "SMA50", "SMA200",
   "Recommend.All", "relative_volume_10d_calc", "price_52_week_high",
   "Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
+const LIVE_FIELDS = ["close", "high", "low", "ATR", "RSI", "SMA50", "SMA200", "Recommend.All", "relative_volume_10d_calc",
+  "Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
 const BULL = ["Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
 const nz = (v: any) => (v === null || v === undefined || Number.isNaN(+v) ? null : +v);
 const rp = (v: number) => { const a = Math.abs(v); const d = a >= 100 ? 2 : a >= 1 ? 3 : a >= 0.01 ? 5 : 8; return Math.round(v * 10 ** d) / 10 ** d; };
@@ -39,13 +41,19 @@ const bkkToday = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0
 async function bars(market: Market, tickers: string[]): Promise<Map<string, Row>> {
   const m = new Map<string, Row>();
   if (!tickers.length) return m;
+  const prev = market === "crypto", cols = prev ? [...COLS, ...LIVE_FIELDS.map((c) => c + "[1]")] : COLS;
   const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, {
     method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (stock-finder signals)" },
-    body: JSON.stringify({ columns: COLS, symbols: { tickers }, range: [0, tickers.length], options: { lang: "en" } }),
+    body: JSON.stringify({ columns: cols, symbols: { tickers }, range: [0, tickers.length], options: { lang: "en" } }),
   });
   if (!res.ok) throw new Error(`TradingView HTTP ${res.status}`);
   const j = await res.json();
-  for (const d of j.data ?? []) { const o: Row = { symbol: d.s }; COLS.forEach((c, i) => (o[c] = d.d[i])); m.set(d.s, o); }
+  for (const d of j.data ?? []) {
+    const o: Row = { symbol: d.s }; cols.forEach((c, i) => (o[c] = d.d[i]));
+    // คริปโตซื้อขายตลอด แท่ง [0] ตอน 08:40 น. เพิ่งเริ่มได้ 1 ชม.กว่า → ใช้แท่งที่ปิดแล้ว ([1]) ทั้งการออกและตรวจผล
+    if (prev) LIVE_FIELDS.forEach((c) => { const x = o[c + "[1]"]; if (x !== undefined && x !== null) o[c] = x; });
+    m.set(d.s, o);
+  }
   return m;
 }
 
