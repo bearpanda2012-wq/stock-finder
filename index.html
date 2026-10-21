@@ -513,6 +513,23 @@ body{letter-spacing:-.005em}
 .pk-px{display:flex;gap:10px;font-size:12px;margin:8px 0 6px;font-variant-numeric:tabular-nums;color:#dbe4f7}
 .pk p{margin:0;font-size:12px;line-height:1.6;color:#b7c4df;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .aid-foot{margin-top:14px;font-size:10.5px;color:#7486ad}
+.sig .aid-pk-h span{display:block;margin:4px 0 0}
+.sig .aid-pk-h b{color:#fff}
+.sigt{overflow-x:auto;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.03)}
+.sigt table{width:100%;border-collapse:collapse;font-size:12.5px;color:#dbe4f7}
+.sigt th{position:static;background:transparent;text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.3px;
+  text-transform:none;color:#8fa0c4;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.08);cursor:default;white-space:nowrap}
+.sigt td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;white-space:nowrap;vertical-align:top}
+.sigt tr:last-child td{border-bottom:0}
+.sigt tbody tr{cursor:pointer} .sigt tbody tr:hover{background:rgba(255,255,255,.05)}
+.sigt td b{color:#fff;font-weight:700;display:block}
+.sigt td small{display:block;font-size:10.5px;color:#8fa0c4;margin-top:2px}
+.sigt .num{font-variant-numeric:tabular-nums}
+.sst{font-style:normal;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+.sst.w{background:rgba(124,156,255,.18);color:#b9c9ff} .sst.e{background:rgba(52,211,154,.18);color:#6ee7b7}
+.sst.t{background:rgba(52,211,154,.28);color:#a7f3d0} .sst.s{background:rgba(255,107,107,.2);color:#fca5a5}
+.sst.x{background:rgba(255,255,255,.1);color:#9fb0d3}
+.sig-note{font-size:10.5px;color:#7486ad;margin-top:8px;line-height:1.6}
 @media (max-width:820px){ .aid-main{grid-template-columns:1fr} .aid-txt h2{font-size:17px} .aid-body{padding:14px} }
 
 /* รายการทุกกลุ่มในลิ้นชัก */
@@ -3512,8 +3529,53 @@ function renderDaily(){
       ${kpi}
     </div>
     ${picks?`<div class="aid-pk-h">หุ้นน่าจับตา <span>กดเพื่อดูรายละเอียด</span></div><div class="pks">${picks}</div>`:""}
+    <div id="sigBox" class="sig"></div>
     <div class="aid-foot">สแกน ${d.scanned||"—"} หลักทรัพย์ขนาดใหญ่ · ข้อมูลจาก TradingView ณ เช้าวันที่สแกน · ใช้ประกอบการศึกษา ไม่ใช่คำแนะนำการลงทุน</div>`);
   $("#aidBody").querySelectorAll(".pk").forEach(el=>el.onclick=()=>openSymbol(el.dataset.s));
+  loadSignals(m);
+}
+
+/* ---- AI คัดแล้ว: จุดเข้าซื้อตามระบบ (ตาราง trade_signals) ---- */
+const SETUP_TH = {pullback:"ย่อในขาขึ้น", breakout:"ทะลุจุดสูงสุด", rebound:"เด้งจากขายมากเกิน"};
+const SIG_ST = {open:["รอเข้า","w"], entered:["เข้าแล้ว","e"], target:["ถึงเป้า","t"], stopped:["ตัดขาดทุน","s"],
+                expired:["หมดอายุ","x"], timeout:["ครบเวลา","x"]};
+const fmtP = v => v===null||v===undefined ? "—" : (+v).toLocaleString("en-US",{maximumFractionDigits: +v>=100?2:+v>=1?3:6});
+async function loadSignals(m){
+  const box = $("#sigBox"); if(!box || !authOn()) return;
+  try{
+    const since = new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+    const {data, error} = await AUTH.sb.from("trade_signals").select("*")
+      .eq("market", m).gte("signal_date", since).order("signal_date",{ascending:false}).limit(300);
+    if(error) throw error;
+    if(AID.market !== m) return;
+    const rows = data || [];
+    const live = rows.filter(r=>r.status==="open"||r.status==="entered").slice(0,10);
+    const done = rows.filter(r=>["target","stopped","timeout"].includes(r.status));
+    const win = done.filter(r=>+r.result_pct>0).length;
+    const avg = done.length ? done.reduce((s,r)=>s+(+r.result_pct||0),0)/done.length : null;
+    const stat = done.length
+      ? `<span>ผลจริง 90 วัน: <b>${done.length}</b> รายการปิดแล้ว · ชนะ <b>${Math.round(win/done.length*100)}%</b> · เฉลี่ย <b class="${cls(avg)}">${sgn(avg)}</b>/ครั้ง</span>`
+      : `<span>เริ่มเก็บผลจริงแล้ว — สถิติชนะ/แพ้จะขึ้นเมื่อมีสัญญาณปิดครบรอบ</span>`;
+    box.innerHTML = `
+      <div class="aid-pk-h">AI คัดแล้ว · จุดเข้าซื้อตามระบบ <span>${stat}</span></div>
+      ${live.length ? `<div class="sigt"><table>
+        <thead><tr><th>หุ้น</th><th>รูปแบบ</th><th>โซนเข้า</th><th>ตัดขาดทุน</th><th>เป้า 1 / 2</th><th>ใช้ได้ถึง</th><th>สถานะ</th></tr></thead>
+        <tbody>${live.map(r=>{ const st=SIG_ST[r.status]||[r.status,"x"];
+          const risk=((+r.entry_high-+r.stop)/+r.entry_high*100);
+          return `<tr data-s="${escapeHtml(r.symbol)}" title="${escapeHtml(r.reason||"")}">
+            <td><b>${escapeHtml(r.name||r.symbol)}</b><small>ออกสัญญาณ ${escapeHtml(fmtD(r.signal_date))}</small></td>
+            <td>${escapeHtml(SETUP_TH[r.setup]||r.setup)}</td>
+            <td class="num">${fmtP(r.entry_low)} – ${fmtP(r.entry_high)}</td>
+            <td class="num dn">${fmtP(r.stop)}<small>−${risk.toFixed(1)}%</small></td>
+            <td class="num up">${fmtP(r.target1)} / ${fmtP(r.target2)}</td>
+            <td>${escapeHtml(fmtD(r.valid_until))}</td>
+            <td><i class="sst ${st[1]}">${st[0]}</i>${r.status==="entered"&&r.entry_price?`<small>เข้า ${fmtP(r.entry_price)}</small>`:""}</td>
+          </tr>`}).join("")}</tbody></table></div>`
+        : `<div class="aid-empty">วันนี้ไม่มีหุ้นที่เข้าเงื่อนไขครบ — ระบบจะไม่ฝืนออกสัญญาณ</div>`}
+      <div class="sig-note">สัญญาณสร้างจากกติกาตายตัว (แนวโน้ม · RSI · วอลุ่ม · ATR) ตรวจผลจากราคาสูง/ต่ำรายวันหลังตลาดปิด
+        ไม่ได้บอกเวลาซื้อขายรายนาที · ผลในอดีตไม่รับประกันอนาคต · ไม่ใช่คำแนะนำการลงทุน ควรกำหนดขนาดเงินลงทุนและจุดตัดขาดทุนเอง</div>`;
+    box.querySelectorAll("tr[data-s]").forEach(tr=>tr.onclick=()=>openSymbol(tr.dataset.s));
+  }catch(e){ box.innerHTML = `<div class="aid-empty">โหลดสัญญาณไม่สำเร็จ — ${escapeHtml(thErr(e))}</div>` }
 }
 
 function openSymbol(sym){
