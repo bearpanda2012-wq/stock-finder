@@ -3732,7 +3732,11 @@ async function loadAiNote(r){
   try{
     const {data, error} = await AUTH.sb.functions.invoke("ai-analyze", {body:{symbol:sym, market:S.market}});
     if(curSym!==sym) return;
-    if(error) throw error;
+    if(error){
+      // ข้อความจริงจากเซิร์ฟเวอร์ (เช่น "AI ไม่ตอบในตอนนี้") อยู่ใน body ของ response
+      let msg=""; try{ msg=(await error.context.json()).error||"" }catch(_){}
+      throw msg? new Error(msg) : error;
+    }
     if(data && data.error) throw new Error(data.error);
     const a=data.analysis||{};
     const li = xs => (xs||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join("");
@@ -3744,7 +3748,8 @@ async function loadAiNote(r){
       ${a.plan_comment?`<div class="ain-g"><b>มุมมองต่อแผนเทรด</b><p>${escapeHtml(a.plan_comment)}</p></div>`:""}`;
   }catch(e){
     if(curSym!==sym) return;
-    box.innerHTML = `<span class="mut">AI วิเคราะห์ไม่สำเร็จ — ${escapeHtml(thErr(e))}</span>`;
+    box.innerHTML = `<span class="mut">AI วิเคราะห์ไม่สำเร็จ — ${escapeHtml(thErr(e))}</span> <button class="mini" id="aiRetry">ลองใหม่</button>`;
+    const b=$("#aiRetry"); if(b) b.onclick=()=>{ box.innerHTML=`<span class="mut">กำลังให้ AI วิเคราะห์… (อาจใช้เวลาสักครู่)</span>`; loadAiNote(r) };
   }
 }
 
