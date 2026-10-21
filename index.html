@@ -288,6 +288,34 @@ tbody tr:hover .patg{border-color:#d0cec8}
 .menu button:hover{background:var(--sunk);color:var(--tx)}
 .tier{display:inline-block;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;
   background:var(--sunk);color:var(--tx2);width:fit-content;letter-spacing:.3px}
+.mbox.wide{width:min(860px,100%);max-height:92vh;display:flex;flex-direction:column}
+.mbox.wide .mbody{overflow:auto}
+.chk{display:flex;gap:9px;align-items:flex-start;margin:8px 0;font-size:13px;line-height:1.5}
+.chk input{margin-top:3px;flex:none}
+.chk small{display:block;color:var(--tx2);font-size:11.5px}
+.mkchips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px 26px}
+.mkchips label{display:flex;gap:5px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px}
+.mkchips label.dis{opacity:.5}
+.gbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.adminbox{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px}
+.stk{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stk div{border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.stk span{display:block;font-size:11px;color:var(--tx2)} .stk b{font-size:18px}
+.sttab{width:100%;border-collapse:collapse;font-size:12px}
+.sttab th,.sttab td{padding:6px 7px;border-bottom:1px solid var(--line2);text-align:left;white-space:nowrap}
+.sttab th{font-size:11px;color:var(--tx2);font-weight:600;position:sticky;top:0;background:var(--card)}
+.stfilt{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+@media(max-width:640px){.stk{grid-template-columns:repeat(2,1fr)}}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.plan .btn{margin-top:auto}
+.pp{font-size:22px;font-weight:750;color:var(--acc)} .pp small{font-size:12px;color:var(--tx2);font-weight:500}
+.qrbox{text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center}
+.qrimg{width:min(260px,70vw);height:auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+.testbadge{background:#fff3cd;color:#7a5a00;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600}
+.agree{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5;color:var(--tx2);margin:4px 0 10px}
+.agree input{margin-top:3px;flex:none}
+.agree a,#authHint a{color:var(--acc)}
 .tier.pro{background:var(--acc);color:#fff}
 
 .modal{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:20px}
@@ -639,6 +667,8 @@ tbody tr:last-child td{border-bottom:0}
         <div class="menu" id="userMenu">
           <div class="mhead"><b id="mEmail"></b><span id="mTier" class="tier"></span></div>
           <button data-a="watch">⭐ รายการเฝ้าดู</button>
+          <button data-a="alerts">🔔 อีเมลแจ้งเตือน</button>
+          <button data-a="stats">📊 สถิติผลย้อนหลัง</button>
           <button data-a="admin" id="mAdmin" style="display:none">👤 จัดการสมาชิก</button>
           <button data-a="sync">☁ ซิงก์การตั้งค่าขึ้นคลาวด์</button>
           <button data-a="pw">🔑 เปลี่ยนรหัสผ่าน</button>
@@ -734,7 +764,17 @@ tbody tr:last-child td{border-bottom:0}
 
   <div class="foot">
     คะแนน 0–100 คำนวณจากข้อมูลจริงตามน้ำหนักที่ตั้งไว้ (คุณค่า / คุณภาพ / เติบโต / โมเมนตัม / เทคนิค) — เป็นเครื่องมือช่วยคัดกรอง ไม่ใช่คำแนะนำการลงทุน<br>
-    ข้อมูลดึงสดจาก TradingView public scanner ทุกครั้งที่โหลดหน้า · ไม่มีเซิร์ฟเวอร์ ไม่เก็บข้อมูลผู้ใช้
+    ข้อมูลราคาจาก TradingView · ไม่ใช่ที่ปรึกษาการลงทุนที่ได้รับอนุญาตจาก ก.ล.ต. · ผู้ใช้ตัดสินใจและรับความเสี่ยงเอง<br>
+    <a href="terms.html">ข้อกำหนดการใช้งาน</a> · <a href="privacy.html">นโยบายความเป็นส่วนตัว</a>
+  </div>
+</div>
+
+<!-- กล่องอเนกประสงค์ (แจ้งเตือน / สถิติ / อัปเกรด) -->
+<div class="ov" id="gov"></div>
+<div class="modal" id="gModal">
+  <div class="mbox" id="gBox">
+    <div class="mtop"><h2 id="gTitle"></h2><button class="x" id="gX">✕</button></div>
+    <div class="mbody" id="gBody"></div>
   </div>
 </div>
 
@@ -760,6 +800,9 @@ tbody tr:last-child td{border-bottom:0}
         <input type="password" id="authPw" autocomplete="current-password" placeholder="อย่างน้อย 8 ตัวอักษร"></label>
       <label class="fld" id="nameWrap" style="display:none"><span>ชื่อที่แสดง</span>
         <input type="text" id="authName" placeholder="ไม่ใส่ก็ได้"></label>
+      <label class="agree" id="agreeWrap" style="display:none"><input type="checkbox" id="authAgree">
+        <span>ฉันยอมรับ <a href="terms.html" target="_blank">ข้อกำหนดการใช้งาน</a> และ <a href="privacy.html" target="_blank">นโยบายความเป็นส่วนตัว</a>
+        และเข้าใจว่าแอปนี้เป็นเครื่องมือคัดกรอง ไม่ใช่คำแนะนำการลงทุน</span></label>
       <div id="authMsg" class="amsg"></div>
       <button class="btn pri" id="authGo" style="width:100%;padding:11px;margin-top:4px">เข้าสู่ระบบ</button>
       <div class="arow">
@@ -976,6 +1019,10 @@ async function tvScan({market, columns, filters, sortBy, order, limit, tickers})
 }
 
 /* ================= field sets ================= */
+/* ค่าของแท่งวันก่อน (TradingView ใช้ชื่อ field[1]) — ใช้คำนวณโซนราคาจากแท่งที่ปิดแล้ว ไม่ให้ตัวเลขขยับระหว่างวัน */
+const PLAN_FIELDS = ["close","ATR","RSI","SMA50","SMA200","Recommend.All","relative_volume_10d_calc",
+  "Candle.3WhiteSoldiers","Candle.MorningStar","Candle.Engulfing.Bullish","Candle.Hammer"];
+const PLAN_PREV = PLAN_FIELDS.map(f=>f+"[1]");
 const STOCK_COLS = ["name","description","close","change","volume","market_cap_basic","price_earnings_ttm",
   "price_book_fq","return_on_equity","net_margin_ttm","total_revenue_yoy_growth_ttm",
   "earnings_per_share_diluted_yoy_growth_ttm","dividends_yield_current","debt_to_equity","RSI",
@@ -987,14 +1034,16 @@ const STOCK_COLS = ["name","description","close","change","volume","market_cap_b
   "Candle.3WhiteSoldiers","Candle.MorningStar","Candle.Engulfing.Bullish","Candle.Hammer",
   "Candle.InvertedHammer","Candle.Harami.Bullish","Candle.Doji.Dragonfly","Candle.Marubozu.White",
   "Candle.3BlackCrows","Candle.EveningStar","Candle.Engulfing.Bearish","Candle.ShootingStar",
-  "Candle.HangingMan","Candle.Harami.Bearish","Candle.Doji.Gravestone","Candle.Marubozu.Black","Candle.Doji"];
+  "Candle.HangingMan","Candle.Harami.Bearish","Candle.Doji.Gravestone","Candle.Marubozu.Black","Candle.Doji",
+  ...PLAN_PREV];
 const CRYPTO_COLS = ["base_currency","base_currency_desc","close","change","market_cap_calc","volume","RSI",
   "Recommend.All","Perf.W","Perf.1M","Perf.3M","Perf.6M","Perf.YTD","Perf.Y","exchange","SMA50","SMA200",
   "ATR","relative_volume_10d_calc","price_52_week_high","ADX","MACD.macd","MACD.signal","Stoch.K","Stoch.D","BB.upper","BB.lower","Volatility.M",
   "Candle.3WhiteSoldiers","Candle.MorningStar","Candle.Engulfing.Bullish","Candle.Hammer",
   "Candle.InvertedHammer","Candle.Harami.Bullish","Candle.Doji.Dragonfly","Candle.Marubozu.White",
   "Candle.3BlackCrows","Candle.EveningStar","Candle.Engulfing.Bearish","Candle.ShootingStar",
-  "Candle.HangingMan","Candle.Harami.Bearish","Candle.Doji.Gravestone","Candle.Marubozu.Black","Candle.Doji"];
+  "Candle.HangingMan","Candle.Harami.Bearish","Candle.Doji.Gravestone","Candle.Marubozu.Black","Candle.Doji",
+  ...PLAN_PREV];
 const DETAIL_COLS = ["name","description","close","country","industry","sector","number_of_employees",
   "total_shares_outstanding_current","fundamental_currency_code","market_cap_basic",
   "earnings_release_next_trading_date_fq","earnings_per_share_forecast_next_fq","revenue_forecast_next_fq",
@@ -1642,8 +1691,8 @@ function paintAuth(){
   const adm = $("#mAdmin");
   if(adm) adm.style.display = AUTH.isAdmin ? "" : "none";
   const up = $("#mUpgrade");
-  const url = (window.SF_SUPABASE||{}).upgradeUrl;
-  up.style.display = (t==="free" && url) ? "" : "none";
+  up.style.display = t==="lifetime" ? "none" : "";
+  up.textContent = t==="free" ? "✦ อัปเกรดเป็น Pro" : "✦ ต่ออายุ / อัปเกรด";
 }
 
 /* ---------- กล่องเข้าสู่ระบบ ---------- */
@@ -1683,10 +1732,11 @@ function setAuthMode(m){
   document.querySelectorAll("#authTabs button").forEach(b=>b.classList.toggle("on", b.dataset.t===m));
   $("#pwWrap").style.display   = m==="magic" ? "none" : "";
   $("#nameWrap").style.display = m==="up" ? "" : "none";
+  $("#agreeWrap").style.display = m==="up" ? "" : "none";
   $("#authGo").textContent = m==="in" ? "เข้าสู่ระบบ" : m==="up" ? "สมัครสมาชิก" : "ส่งลิงก์เข้าอีเมล";
   $("#authTitle").textContent = m==="up" ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
   $("#authForgot").style.display = m==="in" ? "" : "none";
-  $("#authHint").textContent = m==="magic" ? "ไม่ต้องใช้รหัสผ่าน" : "";
+  $("#authHint").innerHTML = m==="magic" ? 'ไม่ต้องใช้รหัสผ่าน · การใช้งานถือว่ายอมรับ<a href="terms.html" target="_blank">ข้อกำหนด</a>' : "";
   msg("");
 }
 function msg(text, kind){
@@ -1726,11 +1776,13 @@ async function doAuth(){
   const go=$("#authGo"); go.disabled=true; msg("กำลังดำเนินการ…");
   try{
     if(authMode==="magic"){
+      // ลิงก์ทางอีเมลสร้างบัญชีใหม่ได้ด้วย → ถือว่ายอมรับข้อกำหนด (แจ้งไว้ใต้ปุ่ม)
       const {error} = await AUTH.sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.href}});
       if(error) throw error;
       msg("ส่งลิงก์ไปที่อีเมลแล้ว เปิดลิงก์เพื่อเข้าสู่ระบบ","ok");
     }else if(authMode==="up"){
       if(pw.length < PW_MIN) throw new Error("Password should be at least " + PW_MIN + " characters");
+      if(!$("#authAgree").checked) throw new Error("กรุณายอมรับข้อกำหนดการใช้งานและนโยบายความเป็นส่วนตัวก่อนสมัคร");
       const {data, error} = await AUTH.sb.auth.signUp({
         email, password: pw,
         options:{ data:{display_name: $("#authName").value.trim() || null}, emailRedirectTo: location.href }
@@ -2054,8 +2106,7 @@ function gateBanner(){
   return `<div class="gate">
     <span>ระดับ<b>ฟรี</b> — ดูได้ ${TIERS.free.rows} อันดับ เฉพาะหุ้นไทย และเก็บรายการเฝ้าดูได้ ${TIERS.free.watch} ตัว</span>
     <span class="sp"></span>
-    ${url ? `<a class="btn pri" style="padding:7px 15px;text-decoration:none" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">อัปเกรดเป็น Pro</a>`
-          : `<span class="mut">ติดต่อผู้ดูแลเพื่ออัปเกรด</span>`}
+    <button class="btn pri" style="padding:7px 15px" onclick="openUpgrade()">อัปเกรดเป็น Pro</button>
   </div>`;
 }
 
@@ -2591,7 +2642,7 @@ const COLS_STOCK = [
   {k:"total_revenue_yoy_growth_ttm", l:"รายได้โต", r:r=>`<span class="${cls(r.total_revenue_yoy_growth_ttm)}">${pct(r.total_revenue_yoy_growth_ttm)}</span>`},
   {k:"RSI", l:"RSI", r:r=>num(r.RSI,0)},
   {k:"Recommend.All", l:"สัญญาณ", r:r=>{const b=recLabel(r["Recommend.All"]); return `<span class="badge ${b.c}">${b.t}</span>`}},
-  {k:"_plan", l:"แผน AI · โซนเข้า", r:planCell},
+  {k:"_plan", l:"โซนราคาตามเงื่อนไข", r:planCell},
   {k:"sector", l:"กลุ่ม", r:r=>`<span class="mut">${escapeHtml(r.sector||"–")}</span>`}
 ];
 const COLS_CRYPTO = [
@@ -2608,7 +2659,7 @@ const COLS_CRYPTO = [
   {k:"market_cap_calc", l:"มูลค่าตลาด", r:r=>cap(r.market_cap_calc)},
   {k:"RSI", l:"RSI", r:r=>num(r.RSI,0)},
   {k:"Recommend.All", l:"สัญญาณ", r:r=>{const b=recLabel(r["Recommend.All"]); return `<span class="badge ${b.c}">${b.t}</span>`}},
-  {k:"_plan", l:"แผน AI · โซนเข้า", r:planCell}
+  {k:"_plan", l:"โซนราคาตามเงื่อนไข", r:planCell}
 ];
 const starCell = r => authOn()
   ? `<button class="starcell${inWatch(r.symbol)?" on":""}" title="${inWatch(r.symbol)?"เอาออกจากรายการเฝ้าดู":"เพิ่มเข้ารายการเฝ้าดู"}">${inWatch(r.symbol)?"★":"☆"}</button>`
@@ -2623,12 +2674,38 @@ function planPx(v, dir){
   const t=SET_TICK(v), f=dir==="down"?Math.floor:dir==="up"?Math.ceil:Math.round; return Math.round(f(v/t)*t*100)/100;
 }
 const PLAN_BULL = ["Candle.3WhiteSoldiers","Candle.MorningStar","Candle.Engulfing.Bullish","Candle.Hammer"];
-function tradePlan(r){
+/* แท่งอ้างอิง = แท่งรายวันล่าสุดที่ "ปิดแล้ว" (กติกาเดียวกับ Edge Function ai-analyze / trade-signals)
+   ระหว่างตลาดเปิด ใช้แท่งเมื่อวาน ([1]) · ตลาดปิดแล้วใช้แท่งล่าสุด · คริปโตซื้อขายตลอด จึงใช้แท่ง [1] เสมอ (ตัดรอบ 07:00 น.)
+   day = รหัสรอบ ใช้จับคู่กับบทวิเคราะห์ AI ของรอบเดียวกัน */
+const PLAN_MKT = {thailand:["Asia/Bangkok",10,16.75], america:["America/New_York",9.5,16.25]};
+const WEEKDAYS = ["Mon","Tue","Wed","Thu","Fri"];
+function tzParts(tz, t){
+  const o={}; new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",weekday:"short"}).formatToParts(new Date(t)).forEach(p=>o[p.type]=p.value);
+  return {date:`${o.year}-${o.month}-${o.day}`, h:(+o.hour%24)+(+o.minute)/60, wd:o.weekday};
+}
+function planBasis(m, t=Date.now()){
+  if(m==="crypto") return {prev:true, day:new Date(t).toISOString().slice(0,10)};
+  const [tz,open,close]=PLAN_MKT[m]||PLAN_MKT.thailand, p=tzParts(tz,t);
+  return {prev: WEEKDAYS.includes(p.wd) && p.h>=open && p.h<close, day: tzParts(tz, t+(24-close)*36e5).date};
+}
+function planView(r){
+  if(!planBasis(S.market).prev) return r;
+  const v={...r}; PLAN_FIELDS.forEach(f=>{ const x=r[f+"[1]"]; if(x!==undefined && x!==null) v[f]=x }); return v;
+}
+const PLAN_W = {value:20, quality:25, growth:20, momentum:20, tech:15};   // น้ำหนักมาตรฐาน — ไม่ขึ้นกับที่ผู้ใช้ปรับ
+function planScore(v){
+  const p=pillars(v); let s=0,t=0;
+  for(const k in PLAN_W){ if(p[k]===null) continue; s+=p[k]*PLAN_W[k]; t+=PLAN_W[k] }
+  return {score: t?Math.round(s/t):0, quality:p.quality};
+}
+function tradePlan(r0){
+  const r=planView(r0);
   const crypto=isCrypto(), c=nz(r.close), atr=nz(r.ATR), rsi=nz(r.RSI), s200=nz(r.SMA200), s50=nz(r.SMA50);
   if(c===null || !atr || atr<=0 || rsi===null) return {ok:false, why:"ข้อมูลไม่พอคำนวณ (ไม่มี ATR/RSI)"};
   if(atr/c > (crypto?0.12:0.08)) return {ok:false, why:`ผันผวนสูงเกินไป (ATR ${(atr/c*100).toFixed(1)}% ต่อวัน)`};
   const rec=nz(r["Recommend.All"])??0, rvol=nz(r.relative_volume_10d_calc)??0, hi52=nz(r.price_52_week_high);
-  const bull=PLAN_BULL.find(k=>r[k]===1), score=r._score||0, q=(r._p&&r._p.quality)??null;
+  const ps=planScore(r), bull=PLAN_BULL.find(k=>r[k]===1), score=ps.score, q=ps.quality;
   let setup="", lo=0, hi=0, why="";
   if(s200 && s50 && c>s200 && s50>s200 && rsi>=40 && rsi<=58 && rec>0 && score>=60){
     setup="pullback"; hi=c; lo=c-0.5*atr; why=`แนวโน้มขาขึ้น (เหนือ SMA200, SMA50 > SMA200) กำลังย่อตัว RSI ${rsi.toFixed(0)}`;
@@ -2647,14 +2724,14 @@ function tradePlan(r){
   }
   const stop=lo-1.5*atr, risk=hi-stop; if(stop<=0||risk<=0) return {ok:false, why:"ระยะตัดขาดทุนไม่สมเหตุผล"};
   const P={lo:planPx(lo,"down"), hi:planPx(hi,"up"), stop:planPx(stop,"down"), t1:planPx(hi+2*risk), t2:planPx(hi+3.5*risk)};
-  return {ok:true, setup, why, ...P, riskPct:(P.hi-P.stop)/P.hi*100, days: crypto?3:7};
+  return {ok:true, setup, why, ...P, ref:c, riskPct:(P.hi-P.stop)/P.hi*100, days: crypto?3:7};
 }
 const ensurePlan = r => { if(r._pl===undefined){ r._pl=tradePlan(r); r._plan = r._pl.ok ? 100+(r._score||0) : (r._score||0)/100 } return r._pl };
 const fmtPP = v => (+v).toLocaleString("en-US",{maximumFractionDigits: +v>=100?2:+v>=1?3:6});
 function planCell(r){
   const p=ensurePlan(r);
   if(!p.ok) return `<span class="mut" title="${escapeHtml(p.why)}">รอจังหวะ</span>`;
-  return `<span class="plc" title="${escapeHtml(p.why)} · ตัดขาดทุน ${fmtPP(p.stop)} · เป้า ${fmtPP(p.t1)} / ${fmtPP(p.t2)}">
+  return `<span class="plc" title="${escapeHtml(p.why)} · จุดหยุดขาดทุนอ้างอิง ${fmtPP(p.stop)} · ระดับอ้างอิง ${fmtPP(p.t1)} / ${fmtPP(p.t2)} · ไม่ใช่คำแนะนำการลงทุน">
     <i class="plb ${p.setup}">${SETUP_TH[p.setup]}</i><b>${fmtPP(p.lo)}–${fmtPP(p.hi)}</b><small>SL ${fmtPP(p.stop)} · TP ${fmtPP(p.t1)}</small></span>`;
 }
 
@@ -3306,18 +3383,18 @@ async function detail(r){
   const vu = (()=>{ const d=new Date(Date.now()+7*36e5); d.setUTCDate(d.getUTCDate()+(pl.days||7)); return d.toISOString().slice(0,10) })();
   $("#dwb").innerHTML = `
     <div class="sec aiz">
-      <h3>AI วิเคราะห์</h3>
+      <h3>AI วิเคราะห์ · คัดกรองตามเงื่อนไข</h3>
       ${pl.ok ? `<div class="plg">
           <div><span>รูปแบบ</span><b>${SETUP_TH[pl.setup]}</b></div>
-          <div><span>โซนเข้า</span><b>${fmtPP(pl.lo)} – ${fmtPP(pl.hi)}</b></div>
-          <div><span>ตัดขาดทุน</span><b class="dn">${fmtPP(pl.stop)}</b><small>−${pl.riskPct.toFixed(1)}%</small></div>
-          <div><span>เป้า 1 / 2</span><b class="up">${fmtPP(pl.t1)} / ${fmtPP(pl.t2)}</b></div>
+          <div><span>โซนราคา</span><b>${fmtPP(pl.lo)} – ${fmtPP(pl.hi)}</b></div>
+          <div><span>จุดหยุดขาดทุนอ้างอิง</span><b class="dn">${fmtPP(pl.stop)}</b><small>−${pl.riskPct.toFixed(1)}%</small></div>
+          <div><span>ระดับอ้างอิง 1 / 2</span><b class="up">${fmtPP(pl.t1)} / ${fmtPP(pl.t2)}</b></div>
           <div><span>ใช้ได้ถึง</span><b>${escapeHtml(fmtD(vu))}</b></div>
-          <div><span>สถานะ</span><b><i class="sst w">รอเข้า</i></b></div>
-        </div><div class="note" style="margin-top:6px">${escapeHtml(pl.why)}</div>`
-        : `<div class="plno"><b>ยังไม่มีจุดเข้าตามระบบ</b> — ${escapeHtml(pl.why)}</div>`}
+          <div><span>สถานะ</span><b><i class="sst w">รอถึงโซน</i></b></div>
+        </div><div class="note" style="margin-top:6px">${escapeHtml(pl.why)} · อ้างอิงราคาปิดของแท่งที่ปิดแล้ว ${fmtPP(pl.ref)} (ตัวเลขคงที่ทั้งรอบ)</div>`
+        : `<div class="plno"><b>ยังไม่เข้าเงื่อนไขใด</b> — ${escapeHtml(pl.why)}</div>`}
       <div id="aiNote" class="ainote2"><span class="mut">กำลังให้ AI วิเคราะห์…</span></div>
-      <div class="note">แผนคำนวณจากกติกาตายตัว (แนวโน้ม · RSI · วอลุ่ม · ATR) จากข้อมูลล่าสุด ไม่ได้บอกเวลาซื้อขายรายนาที · ไม่ใช่คำแนะนำการลงทุน</div>
+      <div class="note">ตัวเลขคำนวณอัตโนมัติจากกติกาตายตัว (แนวโน้ม · RSI · วอลุ่ม · ATR) จากราคาปิดล่าสุด เพื่อใช้ประกอบการศึกษาเท่านั้น ไม่ใช่คำแนะนำให้ซื้อหรือขาย ผู้ใช้ควรตัดสินใจและรับความเสี่ยงเอง</div>
     </div>
     <div class="sec">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -3446,8 +3523,7 @@ $("#mkt").onclick = e => {
   const b=e.target.closest("button[data-m]"); if(!b) return;
   document.querySelectorAll("#mkt button").forEach(x=>x.classList.remove("on"));
   if(!gateMarket(b.dataset.m)){
-    alert("ตลาดนี้เปิดให้เฉพาะสมาชิก Pro — อัปเกรดเพื่อเข้าถึงหุ้นสหรัฐฯ และคริปโต");
-    if(!signedIn()) openAuth(true);
+    if(confirm("ตลาดนี้เปิดให้เฉพาะสมาชิก Pro — อัปเกรดเพื่อเข้าถึงหุ้นสหรัฐฯ และคริปโต?")) openUpgrade();
     return;
   }
   b.classList.add("on"); S.market=b.dataset.m; S.preset=null; S.sector=null; S.rows=[];
@@ -3502,10 +3578,12 @@ $("#userMenu").onclick = async e=>{
   const a=b.dataset.a;
   if(a==="logout"){ await AUTH.sb.auth.signOut() }
   else if(a==="watch"){ openWl(true) }
+  else if(a==="alerts"){ openAlerts() }
+  else if(a==="stats"){ openStats() }
   else if(a==="admin"){ openAdm(true) }
   else if(a==="sync"){ const ok=await pushCloudCfg(); alert(ok?"ซิงก์การตั้งค่าขึ้นคลาวด์แล้ว":"ซิงก์ไม่สำเร็จ") }
   else if(a==="pw"){ AUTH.recovery=true; openAuth(true) }
-  else if(a==="upgrade"){ const u=(window.SF_SUPABASE||{}).upgradeUrl; if(u) window.open(u,"_blank","noopener") }
+  else if(a==="upgrade"){ openUpgrade() }
 };
 $("#admX").onclick   = ()=>openAdm(false);
 $("#admov").onclick  = ()=>openAdm(false);
@@ -3618,16 +3696,16 @@ function renderDaily(){
       </div>
       ${kpi}
     </div>
-    ${picks?`<div class="aid-pk-h">หุ้นน่าจับตา <span>กดเพื่อดูรายละเอียด</span></div><div class="pks">${picks}</div>`:""}
+    ${picks?`<div class="aid-pk-h">เข้าเงื่อนไขเด่นวันนี้ <span>กดเพื่อดูรายละเอียด</span></div><div class="pks">${picks}</div>`:""}
     <div id="sigBox" class="sig"></div>
-    <div class="aid-foot">สแกน ${d.scanned||"—"} หลักทรัพย์ขนาดใหญ่ · ข้อมูลจาก TradingView ณ เช้าวันที่สแกน · ใช้ประกอบการศึกษา ไม่ใช่คำแนะนำการลงทุน</div>`);
+    <div class="aid-foot">สแกน ${d.scanned||"—"} หลักทรัพย์ขนาดใหญ่ · ข้อมูลจาก TradingView ณ เช้าวันที่สแกน · ใช้ประกอบการศึกษา ไม่ใช่คำแนะนำการลงทุน · <a href="terms.html" target="_blank">ข้อกำหนด</a></div>`);
   $("#aidBody").querySelectorAll(".pk").forEach(el=>el.onclick=()=>openSymbol(el.dataset.s));
   loadSignals(m);
 }
 
-/* ---- AI คัดแล้ว: จุดเข้าซื้อตามระบบ (ตาราง trade_signals) ---- */
+/* ---- คัดกรองตามเงื่อนไข: โซนราคาที่ระบบคำนวณ (ตาราง trade_signals) ---- */
 const SETUP_TH = {pullback:"ย่อในขาขึ้น", breakout:"ทะลุจุดสูงสุด", rebound:"เด้งจากขายมากเกิน"};
-const SIG_ST = {open:["รอเข้า","w"], entered:["เข้าแล้ว","e"], target:["ถึงเป้า","t"], stopped:["ตัดขาดทุน","s"],
+const SIG_ST = {open:["รอถึงโซน","w"], entered:["ถึงโซนแล้ว","e"], target:["ถึงระดับอ้างอิง","t"], stopped:["ต่ำกว่าจุดหยุด","s"],
                 expired:["หมดอายุ","x"], timeout:["ครบเวลา","x"]};
 const fmtP = v => v===null||v===undefined ? "—" : (+v).toLocaleString("en-US",{maximumFractionDigits: +v>=100?2:+v>=1?3:6});
 async function loadSignals(m){
@@ -3647,24 +3725,25 @@ async function loadSignals(m){
       ? `<span>ผลจริง 90 วัน: <b>${done.length}</b> รายการปิดแล้ว · ชนะ <b>${Math.round(win/done.length*100)}%</b> · เฉลี่ย <b class="${cls(avg)}">${sgn(avg)}</b>/ครั้ง</span>`
       : `<span>เริ่มเก็บผลจริงแล้ว — สถิติชนะ/แพ้จะขึ้นเมื่อมีสัญญาณปิดครบรอบ</span>`;
     box.innerHTML = `
-      <div class="aid-pk-h">AI คัดแล้ว · จุดเข้าซื้อตามระบบ <span>${stat}</span></div>
+      <div class="aid-pk-h">คัดกรองตามเงื่อนไข · โซนราคาที่ระบบคำนวณ <span>${stat} · <a href="#" id="sigStats">ดูสถิติทั้งหมด</a></span></div>
       ${live.length ? `<div class="sigt"><table>
-        <thead><tr><th>หุ้น</th><th>รูปแบบ</th><th>โซนเข้า</th><th>ตัดขาดทุน</th><th>เป้า 1 / 2</th><th>ใช้ได้ถึง</th><th>สถานะ</th></tr></thead>
+        <thead><tr><th>หุ้น</th><th>รูปแบบ</th><th>โซนราคา</th><th>จุดหยุดอ้างอิง</th><th>ระดับอ้างอิง 1 / 2</th><th>ใช้ได้ถึง</th><th>สถานะ</th></tr></thead>
         <tbody>${live.map(r=>{ const st=SIG_ST[r.status]||[r.status,"x"];
           const risk=((+r.entry_high-+r.stop)/+r.entry_high*100);
           return `<tr data-s="${escapeHtml(r.symbol)}" title="${escapeHtml(r.reason||"")}">
-            <td><b>${escapeHtml(r.name||r.symbol)}</b><small>ออกสัญญาณ ${escapeHtml(fmtD(r.signal_date))}</small></td>
+            <td><b>${escapeHtml(r.name||r.symbol)}</b><small>เข้าเงื่อนไข ${escapeHtml(fmtD(r.signal_date))}</small></td>
             <td>${escapeHtml(SETUP_TH[r.setup]||r.setup)}</td>
             <td class="num">${fmtP(r.entry_low)} – ${fmtP(r.entry_high)}</td>
             <td class="num dn">${fmtP(r.stop)}<small>−${risk.toFixed(1)}%</small></td>
             <td class="num up">${fmtP(r.target1)} / ${fmtP(r.target2)}</td>
             <td>${escapeHtml(fmtD(r.valid_until))}</td>
-            <td><i class="sst ${st[1]}">${st[0]}</i>${r.status==="entered"&&r.entry_price?`<small>เข้า ${fmtP(r.entry_price)}</small>`:""}</td>
+            <td><i class="sst ${st[1]}">${st[0]}</i>${r.status==="entered"&&r.entry_price?`<small>ที่ ${fmtP(r.entry_price)}</small>`:""}</td>
           </tr>`}).join("")}</tbody></table></div>`
-        : `<div class="aid-empty">วันนี้ไม่มีหุ้นที่เข้าเงื่อนไขครบ — ระบบจะไม่ฝืนออกสัญญาณ</div>`}
-      <div class="sig-note">สัญญาณสร้างจากกติกาตายตัว (แนวโน้ม · RSI · วอลุ่ม · ATR) ตรวจผลจากราคาสูง/ต่ำรายวันหลังตลาดปิด
-        ไม่ได้บอกเวลาซื้อขายรายนาที · ผลในอดีตไม่รับประกันอนาคต · ไม่ใช่คำแนะนำการลงทุน ควรกำหนดขนาดเงินลงทุนและจุดตัดขาดทุนเอง</div>`;
+        : `<div class="aid-empty">วันนี้ไม่มีหุ้นที่เข้าเงื่อนไขครบ — ระบบจะไม่ฝืนคัดเพิ่ม</div>`}
+      <div class="sig-note">รายการนี้คัดจากกติกาตายตัว (แนวโน้ม · RSI · วอลุ่ม · ATR) ตรวจผลจากราคาสูง/ต่ำรายวันหลังตลาดปิด
+        ไม่ได้บอกเวลาซื้อขายรายนาที · ผลในอดีตไม่รับประกันอนาคต · เป็นเครื่องมือคัดกรองเพื่อการศึกษา ไม่ใช่คำแนะนำให้ซื้อหรือขาย ผู้ใช้ต้องตัดสินใจและบริหารความเสี่ยงเอง</div>`;
     box.querySelectorAll("tr[data-s]").forEach(tr=>tr.onclick=()=>openSymbol(tr.dataset.s));
+    const ss=$("#sigStats"); if(ss) ss.onclick=e=>{ e.preventDefault(); openStats() };
   }catch(e){ box.innerHTML = `<div class="aid-empty">โหลดสัญญาณไม่สำเร็จ — ${escapeHtml(thErr(e))}</div>` }
 }
 
@@ -3741,16 +3820,208 @@ async function loadAiNote(r){
     const a=data.analysis||{};
     const li = xs => (xs||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join("");
     box.innerHTML = `
-      <div class="ain-h"><span class="aid-badge">AI</span> บทวิเคราะห์ ${escapeHtml(fmtD(data.date))}<span class="mut"> · ${escapeHtml(data.model||"")}</span></div>
+      <div class="ain-h"><span class="aid-badge">AI</span> บทวิเคราะห์ ${escapeHtml(data.created ? new Date(data.created).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : fmtD(data.date))}<span class="mut"> · ${escapeHtml(data.model||"")}</span></div>
       <p>${escapeHtml(a.summary||"")}</p>
       ${(a.strengths||[]).length?`<div class="ain-g"><b class="up">จุดแข็ง</b><ul>${li(a.strengths)}</ul></div>`:""}
       ${(a.risks||[]).length?`<div class="ain-g"><b class="dn">ความเสี่ยง</b><ul>${li(a.risks)}</ul></div>`:""}
-      ${a.plan_comment?`<div class="ain-g"><b>มุมมองต่อแผนเทรด</b><p>${escapeHtml(a.plan_comment)}</p></div>`:""}`;
+      ${a.plan_comment?`<div class="ain-g"><b>มุมมองต่อโซนราคา</b><p>${escapeHtml(a.plan_comment)}</p></div>`:""}`;
   }catch(e){
     if(curSym!==sym) return;
     box.innerHTML = `<span class="mut">AI วิเคราะห์ไม่สำเร็จ — ${escapeHtml(thErr(e))}</span> <button class="mini" id="aiRetry">ลองใหม่</button>`;
     const b=$("#aiRetry"); if(b) b.onclick=()=>{ box.innerHTML=`<span class="mut">กำลังให้ AI วิเคราะห์… (อาจใช้เวลาสักครู่)</span>`; loadAiNote(r) };
   }
+}
+
+/* ================= กล่องอเนกประสงค์ ================= */
+function gOpen(title, html, wide){
+  $("#gTitle").textContent = title; $("#gBody").innerHTML = html;
+  $("#gBox").classList.toggle("wide", !!wide);
+  $("#gModal").classList.add("on"); $("#gov").classList.add("on");
+}
+function gClose(){ $("#gModal").classList.remove("on"); $("#gov").classList.remove("on"); if(PAY.timer){ clearInterval(PAY.timer); PAY.timer=null } }
+$("#gX").onclick = gClose; $("#gov").onclick = gClose;
+$("#gModal").addEventListener("click", e=>{ if(e.target.id==="gModal") gClose() });
+
+/* ================= อีเมลแจ้งเตือน (ตาราง alert_prefs · ค่าเริ่มต้นปิด) ================= */
+async function openAlerts(){
+  if(!signedIn()){ openAuth(true); return }
+  gOpen("อีเมลแจ้งเตือน", `<div class="mut">กำลังโหลด…</div>`);
+  let pr = null;
+  try{ const {data} = await AUTH.sb.from("alert_prefs").select("*").eq("user_id", AUTH.user.id).maybeSingle(); pr = data }catch(e){}
+  pr = pr || {email_signals:false, markets:["thailand"], watch_only:false};
+  const paid = tierOf()!=="free" || AUTH.isAdmin;
+  const mk = m => { const dis = m!=="thailand" && !paid;
+    return `<label class="${dis?"dis":""}"><input type="checkbox" data-m="${m}" ${pr.markets.includes(m)&&!dis?"checked":""} ${dis?"disabled":""}>${MKT_TH[m]}${dis?" (Pro)":""}</label>` };
+  $("#gBody").innerHTML = `
+    <label class="chk"><input type="checkbox" id="alOn" ${pr.email_signals?"checked":""}>
+      <span><b>ส่งสรุปการคัดกรองทางอีเมลทุกเช้า (ประมาณ 09:05 น.)</b>
+      <small>ส่งเฉพาะวันที่มีรายการเข้าเงื่อนไขใหม่ หรือเปลี่ยนสถานะ ไปที่ ${escapeHtml(AUTH.user.email||"")} · ยกเลิกได้ทุกเมื่อ</small></span></label>
+    <div class="mkchips" id="alMk">${["thailand","america","crypto"].map(mk).join("")}</div>
+    <label class="chk"><input type="checkbox" id="alWl" ${pr.watch_only?"checked":""}>
+      <span>เฉพาะหุ้นในรายการเฝ้าดูของฉัน<small>ไม่เลือก = ทุกรายการที่ระบบคัดได้ในตลาดที่เลือก</small></span></label>
+    <div class="note" style="margin-top:8px">การเปิดรับถือเป็นการให้ความยินยอมตาม <a href="privacy.html" target="_blank">นโยบายความเป็นส่วนตัว</a> · เนื้อหาเป็นผลการคัดกรองเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน</div>
+    <div id="alMsg" class="amsg"></div>
+    <div class="gbtns"><button class="btn pri" id="alSave">บันทึก</button></div>
+    ${AUTH.isAdmin?`<div class="adminbox"><b>สำหรับแอดมิน</b> · ระบบส่งอีเมลหาแอดมินทุกคนเองเมื่องานเช้ามีปัญหา (09:00 น.)
+      <div class="gbtns"><button class="mini" id="alTest">ส่งอีเมลทดสอบหาฉัน</button><button class="mini" id="alHealth">ตรวจสถานะงานเช้าตอนนี้</button></div></div>`:""}`;
+  const say = (t,k) => { const el=$("#alMsg"); el.textContent=t; el.className="amsg"+(k?" "+k:"") };
+  $("#alSave").onclick = async () => {
+    const markets = [...document.querySelectorAll("#alMk input:checked")].map(i=>i.dataset.m);
+    if($("#alOn").checked && !markets.length) return say("เลือกอย่างน้อย 1 ตลาด","err");
+    say("กำลังบันทึก…");
+    const {error} = await AUTH.sb.from("alert_prefs").upsert({user_id:AUTH.user.id, email_signals:$("#alOn").checked,
+      markets: markets.length?markets:["thailand"], watch_only:$("#alWl").checked}, {onConflict:"user_id"});
+    if(error) return say("บันทึกไม่สำเร็จ — "+thErr(error),"err");
+    say($("#alOn").checked ? "เปิดรับอีเมลแล้ว" : "ปิดรับอีเมลแล้ว","ok");
+  };
+  const call = async (mode, btn) => {
+    btn.disabled=true; say("กำลังเรียก…");
+    try{
+      const {data, error} = await AUTH.sb.functions.invoke("notify", {body:{mode}});
+      if(error){ let m=""; try{ m=(await error.context.json()).error||"" }catch(_){}; throw new Error(m||error.message) }
+      say(mode==="test" ? `ส่งแล้วไปที่ ${data.to} (ถ้าไม่เห็นให้ดูในจดหมายขยะ)`
+        : data.ok ? "งานเช้าวันนี้ปกติดี" : `พบ ${((data.problems||[]).length)} ปัญหา ${((data.warns||[]).length)} ข้อสังเกต — ส่งอีเมลแจ้งแล้ว ${data.sent} ฉบับ`, "ok");
+    }catch(e){ say(thErr(e),"err") } finally{ btn.disabled=false }
+  };
+  const t=$("#alTest"); if(t) t.onclick=()=>call("test",t);
+  const h=$("#alHealth"); if(h) h.onclick=()=>call("health",h);
+}
+
+/* ================= สถิติผลย้อนหลังทั้งหมด (ตาราง trade_signals) =================
+   หุ้นไทยเปิดให้ทุกคน ตลาดอื่นตามสิทธิ์ (บังคับด้วย RLS) */
+async function openStats(){
+  if(!authOn()) return;
+  gOpen("สถิติผลการคัดกรองย้อนหลัง", `<div class="mut">กำลังโหลด…</div>`, true);
+  let rows=[];
+  try{
+    const {data, error} = await AUTH.sb.from("trade_signals").select("*").order("signal_date",{ascending:false}).limit(1000);
+    if(error) throw error; rows=data||[];
+  }catch(e){ $("#gBody").innerHTML=`<div class="aid-empty">โหลดไม่สำเร็จ — ${escapeHtml(thErr(e))}</div>`; return }
+  const F={m:"all", s:"all"};
+  const draw = () => {
+    const xs = rows.filter(r=>(F.m==="all"||r.market===F.m)&&(F.s==="all"||r.setup===F.s));
+    const done = xs.filter(r=>["target","stopped","timeout"].includes(r.status) && r.result_pct!==null);
+    const wins = done.filter(r=>+r.result_pct>0), loss = done.filter(r=>+r.result_pct<=0);
+    const sum = a => a.reduce((t,r)=>t+(+r.result_pct||0),0);
+    const pf = sum(loss) ? Math.abs(sum(wins)/sum(loss)) : null;
+    const k = (l,v,c="") => `<div><span>${l}</span><b class="${c}">${v}</b></div>`;
+    const chip = (key,val,label) => `<button class="mini${F[key]===val?" on":""}" data-k="${key}" data-v="${val}" style="${F[key]===val?"border-color:var(--acc);color:var(--acc)":""}">${label}</button>`;
+    const mkts=[...new Set(rows.map(r=>r.market))];
+    $("#gBody").innerHTML = `
+      <div class="stfilt">${chip("m","all","ทุกตลาด")}${mkts.map(m=>chip("m",m,MKT_TH[m]||m)).join("")}
+        <span style="width:10px"></span>${chip("s","all","ทุกรูปแบบ")}${Object.keys(SETUP_TH).map(s=>chip("s",s,SETUP_TH[s])).join("")}</div>
+      <div class="stk">
+        ${k("รายการทั้งหมด", xs.length)}
+        ${k("ปิดผลแล้ว", done.length)}
+        ${k("อัตราชนะ", done.length?Math.round(wins.length/done.length*100)+"%":"—")}
+        ${k("เฉลี่ยต่อรายการ", done.length?sgn(sum(done)/done.length):"—", done.length?cls(sum(done)):"")}
+        ${k("เฉลี่ยตอนชนะ", wins.length?sgn(sum(wins)/wins.length):"—","up")}
+        ${k("เฉลี่ยตอนแพ้", loss.length?sgn(sum(loss)/loss.length):"—","dn")}
+        ${k("Profit factor", pf===null?"—":pf.toFixed(2))}
+        ${k("ยังเปิดอยู่", xs.filter(r=>r.status==="open"||r.status==="entered").length)}
+      </div>
+      ${done.length<30?`<div class="note" style="margin-bottom:8px">ข้อมูลยังน้อย (${done.length} รายการปิดผล) — ตัวเลขยังเชื่อถือทางสถิติไม่ได้ ควรรออย่างน้อย 30–50 รายการ</div>`:""}
+      <div style="overflow:auto;max-height:52vh"><table class="sttab">
+        <thead><tr><th>วันที่เข้าเงื่อนไข</th><th>หลักทรัพย์</th><th>รูปแบบ</th><th>โซนราคา</th><th>จุดหยุด</th><th>ระดับอ้างอิง 1</th><th>สถานะ</th><th>ราคาที่ถึงโซน</th><th>ราคาปิดผล</th><th>ผล</th></tr></thead>
+        <tbody>${xs.map(r=>{const st=SIG_ST[r.status]||[r.status,"x"]; return `<tr data-s="${escapeHtml(r.symbol)}" style="cursor:pointer">
+          <td>${escapeHtml(fmtD(r.signal_date))}</td><td><b>${escapeHtml(r.name||r.symbol)}</b> <small class="mut">${escapeHtml(MKT_TH[r.market]||"")}</small></td>
+          <td>${escapeHtml(SETUP_TH[r.setup]||r.setup)}</td><td class="num">${fmtP(r.entry_low)} – ${fmtP(r.entry_high)}</td>
+          <td class="num dn">${fmtP(r.stop)}</td><td class="num up">${fmtP(r.target1)}</td><td><i class="sst ${st[1]}">${st[0]}</i></td>
+          <td class="num">${fmtP(r.entry_price)}</td><td class="num">${fmtP(r.exit_price)}</td>
+          <td class="num ${cls(r.result_pct)}">${r.result_pct===null||r.result_pct===undefined?"—":sgn(+r.result_pct)}</td></tr>`}).join("")
+          || `<tr><td colspan="10" class="mut">ยังไม่มีรายการ</td></tr>`}</tbody></table></div>
+      <div class="note" style="margin-top:8px">วิธีนับผล: ถึงโซนเมื่อราคาต่ำ/สูงของวันแตะโซน · ปิดผลที่จุดหยุดหรือระดับอ้างอิง 1 · ถ้าวันเดียวแตะทั้งสองนับเป็นแพ้ · ถือเกิน 30 วันปิดที่ราคาปิด ·
+        ไม่รวมค่าธรรมเนียมและภาษี · ผลในอดีตไม่รับประกันอนาคต · ไม่ใช่คำแนะนำการลงทุน</div>`;
+    $("#gBody").querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{ F[b.dataset.k]=b.dataset.v; draw() });
+    $("#gBody").querySelectorAll("tr[data-s]").forEach(tr=>tr.onclick=()=>{ gClose(); openSymbol(tr.dataset.s) });
+  };
+  draw();
+}
+
+/* ================= อัปเกรดสมาชิก · PromptPay ผ่าน Omise (Edge Function pay) =================
+   ราคาอ่านจากตาราง plans · เซิร์ฟเวอร์เป็นผู้สร้าง QR และยืนยันการชำระกับ Omise เอง เบราว์เซอร์แค่แสดงผล */
+const PAY = {timer:null};
+const payErr = async (error) => { let m="", c=""; try{ const j=await error.context.json(); m=j.error||""; c=j.code||"" }catch(_){}; const e=new Error(m||error.message); e.code=c; return e };
+function upgradeFallback(note){
+  const url=(window.SF_SUPABASE||{}).upgradeUrl;
+  return `<div class="aid-empty">${escapeHtml(note||"ระบบชำระเงินอัตโนมัติยังไม่เปิดใช้")}</div>
+    ${url?`<div class="gbtns"><a class="btn pri" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none">ไปหน้าชำระเงิน</a></div>`:`<div class="note">ติดต่อผู้ดูแลเพื่ออัปเกรด</div>`}`;
+}
+async function openUpgrade(){
+  if(!authOn()) return;
+  if(!signedIn()){ openAuth(true); setAuthMode("up"); return }
+  gOpen("อัปเกรดสมาชิก", `<div class="mut">กำลังโหลด…</div>`, true);
+  let plans=[];
+  try{ const {data, error}=await AUTH.sb.from("plans").select("*").order("sort"); if(error) throw error; plans=data||[] }
+  catch(e){ $("#gBody").innerHTML = upgradeFallback("โหลดแพ็กเกจไม่สำเร็จ — "+thErr(e)); return }
+  if(!plans.length){ $("#gBody").innerHTML = upgradeFallback(); return }
+  const t=tierOf(), exp=AUTH.profile&&AUTH.profile.tier_expires_at;
+  const now = t==="free" ? "ระดับฟรี" : t==="lifetime" ? "Lifetime (ไม่หมดอายุ)" : `Pro${exp?` · หมดอายุ ${fmtD(String(exp).slice(0,10))}`:""}`;
+  $("#gBody").innerHTML = `
+    <div class="note" style="margin-bottom:10px">ตอนนี้: <b>${escapeHtml(now)}</b>${t==="pro"&&exp?" · ซื้อเพิ่มจะต่อจากวันหมดอายุเดิม":""}</div>
+    <div class="plans">${plans.map(p=>`<div class="plan">
+        <b>${escapeHtml(p.label)}</b>
+        <div class="pp">฿${(+p.price_thb).toLocaleString("en-US")}<small>${p.days?` / ${p.days} วัน`:" ครั้งเดียว"}</small></div>
+        <div class="mut">${escapeHtml(p.note||"")}</div>
+        <button class="btn pri" data-p="${escapeHtml(p.code)}" ${t==="lifetime"?"disabled":""}>ชำระด้วย PromptPay</button>
+      </div>`).join("")}</div>
+    <div class="note" style="margin-top:10px">สแกนจ่ายจากแอปธนาคารใดก็ได้ · สิทธิ์เปิดอัตโนมัติภายในไม่กี่วินาทีหลังชำระ · ไม่ต่ออายุอัตโนมัติ ·
+      การชำระถือว่ายอมรับ <a href="terms.html" target="_blank">ข้อกำหนดการใช้งาน</a> (รวมเงื่อนไขการคืนเงิน)</div>
+    <div id="payMsg" class="amsg"></div>`;
+  $("#gBody").querySelectorAll("button[data-p]").forEach(b=>b.onclick=()=>startPay(b.dataset.p, b));
+}
+async function startPay(code, btn){
+  const say=(t,k)=>{ const el=$("#payMsg"); if(el){ el.textContent=t; el.className="amsg"+(k?" "+k:"") } };
+  btn.disabled=true; say("กำลังสร้าง QR…");
+  try{
+    const {data, error} = await AUTH.sb.functions.invoke("pay", {body:{plan:code}});
+    if(error) throw await payErr(error);
+    showQR(data);
+  }catch(e){
+    btn.disabled=false;
+    if(e.code==="not_configured"){ $("#gBody").innerHTML = upgradeFallback(e.message); return }
+    say(thErr(e),"err");
+  }
+}
+function showQR(d){
+  const end = new Date(d.expires_at).getTime();
+  $("#gBody").innerHTML = `<div class="qrbox">
+      ${d.livemode?"":`<div class="testbadge">โหมดทดสอบ — ยังไม่ใช่การชำระเงินจริง</div>`}
+      <div><b>${escapeHtml(d.label)}</b> · <b class="pp">฿${(+d.amount).toLocaleString("en-US")}</b></div>
+      ${d.qr?`<img src="${escapeHtml(d.qr)}" alt="PromptPay QR" class="qrimg">`:`<div class="aid-empty">ไม่ได้รับรูป QR</div>`}
+      <div class="mut">สแกนด้วยแอปธนาคาร หรือบันทึกภาพแล้วเปิดในแอปธนาคาร · QR หมดอายุใน <b id="payLeft">—</b></div>
+      <div id="payMsg" class="amsg">รอการชำระเงิน…</div>
+      <div class="gbtns" style="justify-content:center"><button class="mini" id="payChk">ฉันชำระแล้ว ตรวจสอบ</button><button class="mini" id="payBack">เลือกแพ็กเกจใหม่</button></div>
+    </div>`;
+  const say=(t,k)=>{ const el=$("#payMsg"); if(el){ el.textContent=t; el.className="amsg"+(k?" "+k:"") } };
+  let busy=false;
+  const check = async () => {
+    if(busy) return; busy=true;
+    try{
+      const {data, error} = await AUTH.sb.functions.invoke("pay", {body:{check:d.charge_id}});
+      if(error) throw await payErr(error);
+      if(data.status==="paid"){
+        clearInterval(PAY.timer); PAY.timer=null;
+        await loadProfile(); paintAuth();
+        $("#gBody").innerHTML = `<div class="qrbox"><h3 style="margin:6px 0">ชำระเงินสำเร็จ 🎉</h3>
+          <p>เปิดสิทธิ์ <b>${escapeHtml(TIERS[tierOf()].label)}</b> แล้ว${AUTH.profile&&AUTH.profile.tier_expires_at?` ถึง ${escapeHtml(fmtD(String(AUTH.profile.tier_expires_at).slice(0,10)))}`:""}</p>
+          <div class="gbtns" style="justify-content:center"><button class="btn pri" id="payDone">เริ่มใช้งาน</button></div></div>`;
+        $("#payDone").onclick=()=>location.reload(); toast("อัปเกรดเรียบร้อย");
+      }else if(data.status==="failed"||data.status==="expired"){
+        clearInterval(PAY.timer); PAY.timer=null; say(data.status==="expired"?"QR หมดอายุ — เลือกแพ็กเกจเพื่อสร้างใหม่":"การชำระไม่สำเร็จ "+(data.reason||""),"err");
+      }
+    }catch(e){ say(thErr(e),"err") } finally{ busy=false }
+  };
+  let n=0;
+  if(PAY.timer) clearInterval(PAY.timer);
+  PAY.timer = setInterval(()=>{
+    const left=Math.max(0,end-Date.now()), el=$("#payLeft");
+    if(el) el.textContent = `${Math.floor(left/60000)}:${String(Math.floor(left/1000)%60).padStart(2,"0")} นาที`;
+    if(++n%4===0) check();                 // ถามสถานะทุก 4 วินาที
+    if(left<=0 && n%4===0){ /* ให้ check รอบสุดท้ายตัดสิน expired */ }
+  }, 1000);
+  $("#payChk").onclick = check;
+  $("#payBack").onclick = () => { clearInterval(PAY.timer); PAY.timer=null; openUpgrade() };
 }
 
 /* ================= เว็บแอป (PWA) =================
