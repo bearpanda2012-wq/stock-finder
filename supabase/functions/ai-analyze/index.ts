@@ -20,16 +20,67 @@ const DAILY_LIMIT = 30;
 type Market = "thailand" | "america" | "crypto";
 const MK: Record<Market, string> = { thailand: "หุ้นไทย", america: "หุ้นสหรัฐฯ", crypto: "คริปโต" };
 
-const COLS = ["name", "description", "sector", "industry", "close", "change", "ATR", "RSI", "SMA50", "SMA200",
+const BASE = ["name", "description", "close", "change", "ATR", "RSI", "SMA50", "SMA200",
   "Recommend.All", "relative_volume_10d_calc", "price_52_week_high", "price_52_week_low",
-  "Perf.1M", "Perf.3M", "Perf.YTD", "Perf.Y", "market_cap_basic", "market_cap_calc",
-  "price_earnings_ttm", "price_book_fq", "return_on_equity", "net_margin_ttm", "debt_to_equity",
-  "dividends_yield_current", "total_revenue_yoy_growth_ttm", "earnings_per_share_diluted_yoy_growth_ttm",
+  "Perf.W", "Perf.1M", "Perf.3M", "Perf.YTD", "Perf.Y",
   "Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
+const STOCK_EXTRA = ["sector", "industry", "market_cap_basic", "price_earnings_ttm", "price_book_fq", "return_on_equity",
+  "net_margin_ttm", "debt_to_equity", "dividends_yield_current", "total_revenue_yoy_growth_ttm",
+  "earnings_per_share_diluted_yoy_growth_ttm", "free_cash_flow_margin_ttm", "piotroski_f_score_ttm"];
+// ค่าของแท่งวันก่อน — ใช้เมื่อแท่งวันนี้ยังไม่ปิด (ตรงกับ PLAN_FIELDS ในหน้าเว็บ)
+const PLAN_FIELDS = ["close", "ATR", "RSI", "SMA50", "SMA200", "Recommend.All", "relative_volume_10d_calc",
+  "Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
+const colsFor = (crypto: boolean) => [...BASE, ...(crypto ? [] : STOCK_EXTRA), ...PLAN_FIELDS.map((f) => f + "[1]")];
 const BULL = ["Candle.3WhiteSoldiers", "Candle.MorningStar", "Candle.Engulfing.Bullish", "Candle.Hammer"];
 const nz = (v: any) => (v === null || v === undefined || Number.isNaN(+v) ? null : +v);
 const r2 = (v: any, d = 2) => (nz(v) === null ? null : Math.round(+v * 10 ** d) / 10 ** d);
-const today = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+/* แท่งอ้างอิง = แท่งรายวันล่าสุดที่ปิดแล้ว (กติกาเดียวกับ planBasis() ในหน้าเว็บ)
+   day = รหัสรอบของแท่งอ้างอิง ใช้เป็นกุญแจแคช → บทวิเคราะห์กับตารางในแอปใช้ตัวเลขชุดเดียวกันเสมอ */
+const PLAN_MKT: Record<string, [string, number, number]> = { thailand: ["Asia/Bangkok", 10, 16.75], america: ["America/New_York", 9.5, 16.25] };
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+function tzParts(tz: string, t: number) {
+  const o: Record<string, string> = {};
+  new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", weekday: "short" }).formatToParts(new Date(t)).forEach((p) => (o[p.type] = p.value));
+  return { date: `${o.year}-${o.month}-${o.day}`, h: (+o.hour % 24) + +o.minute / 60, wd: o.weekday };
+}
+function planBasis(m: Market, t = Date.now()) {
+  if (m === "crypto") return { prev: true, day: new Date(t).toISOString().slice(0, 10) };
+  const [tz, open, close] = PLAN_MKT[m], p = tzParts(tz, t);
+  return { prev: WEEKDAYS.includes(p.wd) && p.h >= open && p.h < close, day: tzParts(tz, t + (24 - close) * 3600_000).date };
+}
+
+/* คะแนน 5 ด้าน น้ำหนักมาตรฐาน (ตรงกับ pillars()/planScore() ในหน้าเว็บ) */
+function band(v: any, lo: number, hi: number, inv = false) {
+  const x = nz(v); if (x === null) return null;
+  let t = (x - lo) / (hi - lo); t = Math.max(0, Math.min(1, t)); return (inv ? 1 - t : t) * 100;
+}
+const avg = (a: (number | null)[]) => { const x = a.filter((v): v is number => v !== null && !Number.isNaN(v)); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; };
+function planScore(r: any, crypto: boolean) {
+  const rsi = nz(r.RSI), above200 = nz(r.close) !== null && nz(r.SMA200) ? (r.close > r.SMA200 ? 85 : 35) : null;
+  let p: Record<string, number | null>;
+  if (crypto) {
+    const rs = rsi === null ? null : rsi < 30 ? 55 : rsi < 50 ? 70 : rsi < 65 ? 85 : rsi < 75 ? 55 : 25;
+    p = { value: null, quality: null, growth: null,
+      momentum: avg([band(r["Perf.W"], -15, 15), band(r["Perf.1M"], -30, 40), band(r["Perf.3M"], -50, 80)]),
+      tech: avg([band(r["Recommend.All"], -1, 1), rs, above200]) };
+  } else {
+    const pe = nz(r.price_earnings_ttm), pb = nz(r.price_book_fq), de = nz(r.debt_to_equity);
+    const rs = rsi === null ? null : rsi < 30 ? 60 : rsi < 45 ? 70 : rsi < 60 ? 88 : rsi < 70 ? 65 : 30;
+    p = {
+      value: avg([pe !== null && pe > 0 ? band(pe, 5, 40, true) : pe !== null ? 20 : null,
+        pb !== null && pb > 0 ? band(pb, 0.5, 6, true) : null, band(r.dividends_yield_current, 0, 7)]),
+      quality: avg([band(r.return_on_equity, 0, 30), band(r.net_margin_ttm, 0, 25), band(r.free_cash_flow_margin_ttm, -5, 25),
+        de !== null ? band(de, 0, 2.5, true) : null, band(r.piotroski_f_score_ttm, 3, 9)]),
+      growth: avg([band(r.total_revenue_yoy_growth_ttm, -5, 35), band(r.earnings_per_share_diluted_yoy_growth_ttm, -10, 50)]),
+      momentum: avg([band(r["Perf.1M"], -12, 15), band(r["Perf.3M"], -20, 30), band(r["Perf.YTD"], -25, 45), band(r["Perf.Y"], -30, 60)]),
+      tech: avg([band(r["Recommend.All"], -1, 1), rs, above200, nz(r.SMA50) !== null && nz(r.SMA200) ? (r.SMA50 > r.SMA200 ? 80 : 40) : null]),
+    };
+  }
+  const W: Record<string, number> = { value: 20, quality: 25, growth: 20, momentum: 20, tech: 15 };
+  let s = 0, t = 0; for (const k in W) { const v = p[k]; if (v === null) continue; s += v * W[k]; t += W[k]; }
+  return { score: t ? Math.round(s / t) : 0, quality: p.quality };
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const CORS = {
@@ -55,14 +106,14 @@ function plan(r: any, crypto: boolean) {
   if (c === null || !atr || rsi === null) return null;
   if (atr / c > (crypto ? 0.12 : 0.08)) return null;
   const rec = nz(r["Recommend.All"]) ?? 0, rvol = nz(r.relative_volume_10d_calc) ?? 0, hi52 = nz(r.price_52_week_high);
-  const bull = BULL.find((k) => r[k] === 1);
+  const bull = BULL.find((k) => r[k] === 1), { score, quality } = planScore(r, crypto);
   let setup = "", lo = 0, hi = 0;
-  if (s200 && s50 && c > s200 && s50 > s200 && rsi >= 40 && rsi <= 58 && rec > 0) { setup = "ย่อในขาขึ้น"; hi = c; lo = c - 0.5 * atr; }
-  else if (hi52 && c >= hi52 * 0.97 && rvol >= 1.5 && rsi < 72 && rec > 0.1) { setup = "ทะลุจุดสูงสุด"; lo = c; hi = c + 0.3 * atr; }
-  else if (rsi < 32 && bull) { setup = "เด้งจากขายมากเกิน"; hi = c; lo = c - 0.3 * atr; }
+  if (s200 && s50 && c > s200 && s50 > s200 && rsi >= 40 && rsi <= 58 && rec > 0 && score >= 60) { setup = "ย่อในขาขึ้น"; hi = c; lo = c - 0.5 * atr; }
+  else if (hi52 && c >= hi52 * 0.97 && rvol >= 1.5 && rsi < 72 && rec > 0.1 && score >= 55) { setup = "ทะลุจุดสูงสุด"; lo = c; hi = c + 0.3 * atr; }
+  else if (rsi < 32 && bull && (crypto || (quality ?? 0) >= 55)) { setup = "เด้งจากขายมากเกิน"; hi = c; lo = c - 0.3 * atr; }
   else return null;
   const stop = lo - 1.5 * atr, risk = hi - stop;
-  return { setup, entry: [px(lo, "down"), px(hi, "up")], stop: px(stop, "down"), target1: px(hi + 2 * risk), target2: px(hi + 3.5 * risk) };
+  return { setup, basis_close: px(c), entry: [px(lo, "down"), px(hi, "up")], stop: px(stop, "down"), reference1: px(hi + 2 * risk), reference2: px(hi + 3.5 * risk) };
 }
 
 async function gemini(prompt: string) {
@@ -114,9 +165,9 @@ Deno.serve(async (req) => {
     if (!paid && !a) return json({ error: "บทวิเคราะห์หุ้นสหรัฐฯ และคริปโตสำหรับสมาชิก Pro" }, 403);
   }
 
-  const d = today();
-  const { data: hit } = await db.from("ai_notes").select("analysis,model,note_date").eq("symbol", symbol).eq("note_date", d).maybeSingle();
-  if (hit) return json({ symbol, date: hit.note_date, model: hit.model, analysis: hit.analysis, cached: true });
+  const basis = planBasis(market), d = basis.day;
+  const { data: hit } = await db.from("ai_notes").select("analysis,model,note_date,created_at").eq("symbol", symbol).eq("note_date", d).maybeSingle();
+  if (hit) return json({ symbol, date: hit.note_date, created: hit.created_at, model: hit.model, analysis: hit.analysis, cached: true });
 
   const { count } = await db.from("ai_notes").select("id", { count: "exact", head: true }).eq("created_by", uid).eq("note_date", d);
   if ((count ?? 0) >= DAILY_LIMIT) return json({ error: `ใช้ครบ ${DAILY_LIMIT} ครั้งของวันนี้แล้ว (หุ้นที่มีคนวิเคราะห์ไว้แล้วยังเปิดดูได้)` }, 429);
@@ -125,12 +176,14 @@ Deno.serve(async (req) => {
   // ตัวเลขจาก TradingView
   const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, {
     method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (stock-finder ai)" },
-    body: JSON.stringify({ columns: COLS, symbols: { tickers: [symbol] }, range: [0, 1], options: { lang: "en" } }),
+    body: JSON.stringify({ columns: colsFor(market === "crypto"), symbols: { tickers: [symbol] }, range: [0, 1], options: { lang: "en" } }),
   });
   if (!res.ok) return json({ error: `ดึงข้อมูลราคาไม่สำเร็จ (${res.status})` }, 502);
   const row = (await res.json()).data?.[0]; if (!row) return json({ error: "ไม่พบหุ้นนี้" }, 404);
-  const r: any = {}; COLS.forEach((c, i) => (r[c] = row.d[i]));
   const crypto = market === "crypto"; MKT = market;
+  const r: any = {}; colsFor(crypto).forEach((c, i) => (r[c] = row.d[i]));
+  const v: any = { ...r };                                   // มุมมองแท่งอ้างอิงสำหรับคำนวณโซนราคา
+  if (basis.prev) PLAN_FIELDS.forEach((f) => { const x = r[f + "[1]"]; if (x !== undefined && x !== null) v[f] = x; });
   const facts: any = {
     symbol, name: r.description || r.name, sector: r.sector, industry: r.industry,
     price: r2(r.close, 4), chg_today_pct: r2(r.change), rsi14: r2(r.RSI, 1), atr: r2(r.ATR, 4),
@@ -143,17 +196,17 @@ Deno.serve(async (req) => {
     debt_to_equity: r2(r.debt_to_equity), div_yield_pct: r2(r.dividends_yield_current),
     revenue_growth_yoy_pct: r2(r.total_revenue_yoy_growth_ttm), eps_growth_yoy_pct: r2(r.earnings_per_share_diluted_yoy_growth_ttm),
   });
-  const p = plan(r, crypto);
+  const p = plan(v, crypto);
 
   const prompt = `คุณคือนักวิเคราะห์ที่เขียนบทวิเคราะห์สั้นเป็นภาษาไทยให้นักลงทุนรายย่อย
 หลักทรัพย์: ${facts.name} (${symbol}) · ตลาด: ${MK[market]}
 ข้อมูลล่าสุด (ค่าที่ลงท้าย _pct เป็นร้อยละแล้ว): ${JSON.stringify(facts)}
-แผนเทรดที่ระบบคำนวณด้วยกติกาตายตัวจาก ATR: ${p ? JSON.stringify(p) : "ไม่มี — ยังไม่เข้าเงื่อนไขรูปแบบใด"}
+โซนราคาที่ระบบคำนวณด้วยกติกาตายตัวจาก ATR (อ้างอิงแท่งรายวันที่ปิดแล้ว ราคาปิด basis_close): ${p ? JSON.stringify(p) : "ไม่มี — ยังไม่เข้าเงื่อนไขรูปแบบใด"}
 
 กติกา
 - ใช้เฉพาะตัวเลขข้างบน ห้ามแต่งข่าว เหตุการณ์ งบการเงิน หรือราคาเป้าหมายอื่นที่ไม่มีในข้อมูล
-- ห้ามสั่งซื้อหรือขาย ห้ามรับประกันผล ห้ามเปลี่ยนตัวเลขของแผนเทรด
-- plan_comment: อธิบายว่าแผนนี้สมเหตุสมผลหรือมีจุดต้องระวังอะไร (ถ้าไม่มีแผน ให้บอกว่าควรรอสัญญาณอะไร)
+- ห้ามแนะนำให้ซื้อหรือขาย ห้ามใช้คำว่า "ควรซื้อ" "น่าซื้อ" ห้ามรับประกันผล ห้ามเปลี่ยนตัวเลขของโซนราคา
+- plan_comment: อธิบายว่าโซนราคาตามเงื่อนไขนี้มีจุดที่ต้องระวังอะไร (ถ้าไม่มี ให้บอกว่ายังขาดเงื่อนไขใด)
 
 ตอบเป็น JSON เท่านั้น:
 {"summary":"ภาพรวม 2–3 ประโยค","strengths":["จุดแข็ง 2–3 ข้อ"],"risks":["ความเสี่ยง 2–3 ข้อ"],"plan_comment":"1–2 ประโยค"}`;
@@ -169,5 +222,5 @@ Deno.serve(async (req) => {
   };
   await db.from("ai_notes").upsert({ symbol, market, note_date: d, analysis, model: g.model, created_by: uid },
     { onConflict: "symbol,note_date", ignoreDuplicates: true });
-  return json({ symbol, date: d, model: g.model, analysis, cached: false });
+  return json({ symbol, date: d, created: new Date().toISOString(), model: g.model, analysis, cached: false });
 });
