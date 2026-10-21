@@ -295,3 +295,152 @@ create table if not exists public.ai_notes (
 );
 create index if not exists ai_notes_user_day_idx on public.ai_notes (created_by, note_date);
 alter table public.ai_notes enable row level security;
+
+
+-- ============================================================
+-- 9) ล็อกช่องสิทธิ์สมาชิก — ผู้ใช้แก้ได้แค่ display_name (tier / วันหมดอายุ แก้ได้เฉพาะแอดมินหรือ service role)
+-- ============================================================
+create or replace function public.lock_profile_fields()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is not null and not public.is_admin() then
+    new.id := old.id; new.email := old.email; new.tier := old.tier;
+    new.tier_expires_at := old.tier_expires_at; new.tier_updated_at := old.tier_updated_at; new.created_at := old.created_at;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.lock_profile_fields() from public, anon, authenticated;
+drop trigger if exists lock_profile_fields on public.profiles;
+create trigger lock_profile_fields before update on public.profiles
+  for each row execute function public.lock_profile_fields();
+
+
+-- ============================================================
+-- 10) อีเมลแจ้งเตือน (Edge Function notify · ส่งผ่าน Resend)
+-- ============================================================
+create table if not exists public.alert_prefs (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email_signals boolean not null default false,          -- PDPA: ค่าเริ่มต้นปิด ผู้ใช้เปิดเอง
+  markets text[] not null default array['thailand'],
+  watch_only boolean not null default false,
+  unsub_token uuid not null default gen_random_uuid(),
+  consented_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+alter table public.alert_prefs enable row level security;
+drop policy if exists "own alert prefs" on public.alert_prefs;
+create policy "own alert prefs" on public.alert_prefs for all to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+create or replace function public.alert_prefs_guard()
+returns trigger language plpgsql security definer set search_path = ''
+as $$ begin
+  if tg_op = 'UPDATE' then new.unsub_token := old.unsub_token; end if;
+  if new.email_signals and (tg_op = 'INSERT' or not old.email_signals) then new.consented_at := now(); end if;
+  new.markets := array(select m from unnest(new.markets) m where m in ('thailand','america','crypto'));
+  new.updated_at := now();
+  return new;
+end $$;
+revoke execute on function public.alert_prefs_guard() from public, anon, authenticated;
+drop trigger if exists alert_prefs_guard on public.alert_prefs;
+create trigger alert_prefs_guard before insert or update on public.alert_prefs
+  for each row execute function public.alert_prefs_guard();
+
+create table if not exists public.alert_log (
+  id bigserial primary key, kind text not null,
+  user_id uuid references auth.users(id) on delete cascade, ref text not null,
+  sent_at timestamptz not null default now(), unique (kind, user_id, ref)
+);
+alter table public.alert_log enable row level security;
+
+create or replace function public.cron_health(since interval default interval '3 hours')
+returns jsonb language sql stable security definer set search_path = ''
+as $$
+  select jsonb_build_object(
+    'jobs', coalesce((select jsonb_agg(jsonb_build_object('job', j.jobname, 'status', d.status,
+              'msg', left(d.return_message, 200), 'at', d.start_time) order by d.start_time)
+            from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+            where d.start_time > now() - since), '[]'::jsonb),
+    'http_errors', coalesce((select jsonb_agg(jsonb_build_object('status', r.status_code, 'timed_out', r.timed_out,
+              'err', left(coalesce(r.error_msg, r.content::text), 200), 'at', r.created))
+            from net._http_response r
+            where r.created > now() - since and (r.status_code is null or r.status_code >= 400)), '[]'::jsonb));
+$$;
+revoke execute on function public.cron_health(interval) from public, anon, authenticated;
+grant execute on function public.cron_health(interval) to service_role;
+
+create or replace function public.trigger_notify(mode text)
+returns bigint language plpgsql security definer set search_path = ''
+as $$ declare rid bigint; begin
+  select net.http_post(
+    url := 'https://imfoelpjryfhiqnxzvcx.supabase.co/functions/v1/notify',
+    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',
+      (select decrypted_secret from vault.decrypted_secrets where name='daily_scan_cron_secret')),
+    body := jsonb_build_object('mode', mode), timeout_milliseconds := 120000) into rid;
+  return rid; end $$;
+revoke execute on function public.trigger_notify(text) from public, anon, authenticated;
+
+select cron.unschedule(jobid) from cron.job where jobname in ('notify-health','notify-signals');
+select cron.schedule('notify-health', '0 2 * * *', $$ select public.trigger_notify('health'); $$);    -- 09:00 น.
+select cron.schedule('notify-signals', '5 2 * * *', $$ select public.trigger_notify('signals'); $$);  -- 09:05 น.
+
+
+-- ============================================================
+-- 11) ชำระเงิน PromptPay ผ่าน Omise (Edge Function pay · verify_jwt = false)
+-- ============================================================
+create table if not exists public.plans (
+  code text primary key, label text not null,
+  tier text not null check (tier in ('pro','lifetime')),
+  days int,                                                -- null = ตลอดชีพ
+  price_thb int not null check (price_thb >= 20),          -- PromptPay ขั้นต่ำ 20 บาท
+  note text, active boolean not null default true, sort int not null default 0
+);
+alter table public.plans enable row level security;
+drop policy if exists "plans public" on public.plans;
+create policy "plans public" on public.plans for select to anon, authenticated using (active);
+drop policy if exists "plans admin" on public.plans;
+create policy "plans admin" on public.plans for all to authenticated using (public.is_admin()) with check (public.is_admin());
+insert into public.plans (code,label,tier,days,price_thb,note,sort) values
+  ('pro_month','Pro รายเดือน','pro',30,199,'ทุกตลาด · บทวิเคราะห์ AI · อีเมลแจ้งเตือน',1),
+  ('pro_year','Pro รายปี','pro',365,1990,'ประหยัดกว่ารายเดือน ~2 เดือน',2),
+  ('lifetime','Lifetime','lifetime',null,4990,'จ่ายครั้งเดียว ใช้ได้ตลอด',3)
+on conflict (code) do nothing;
+
+create table if not exists public.payments (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_code text not null references public.plans(code),
+  amount_satang int not null, provider text not null default 'omise', charge_id text unique,
+  status text not null default 'pending' check (status in ('pending','paid','failed','expired')),
+  applied boolean not null default false, livemode boolean,
+  created_at timestamptz not null default now(), paid_at timestamptz
+);
+alter table public.payments enable row level security;
+drop policy if exists "own payments" on public.payments;
+create policy "own payments" on public.payments for select to authenticated using ((select auth.uid()) = user_id or public.is_admin());
+create index if not exists payments_user_idx on public.payments (user_id, created_at desc);
+
+create or replace function public.apply_payment(p_charge text)
+returns text language plpgsql security definer set search_path = ''
+as $$
+declare pay record; pl record; cur record;
+begin
+  update public.payments set status = 'paid', applied = true, paid_at = now()
+    where charge_id = p_charge and applied = false returning * into pay;
+  if not found then return 'already'; end if;
+  select * into pl from public.plans where code = pay.plan_code;
+  select tier, tier_expires_at into cur from public.profiles where id = pay.user_id;
+  if pl.tier = 'lifetime' then
+    update public.profiles set tier = 'lifetime', tier_expires_at = null, tier_updated_at = now() where id = pay.user_id;
+  elsif cur.tier = 'lifetime' or (cur.tier = 'pro' and cur.tier_expires_at is null) then
+    null;
+  else
+    update public.profiles set tier = 'pro',
+      tier_expires_at = greatest(coalesce(cur.tier_expires_at, now()), now()) + make_interval(days => pl.days),
+      tier_updated_at = now() where id = pay.user_id;
+  end if;
+  return 'applied';
+end $$;
+revoke execute on function public.apply_payment(text) from public, anon, authenticated;
+grant execute on function public.apply_payment(text) to service_role;
