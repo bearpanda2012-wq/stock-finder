@@ -172,3 +172,126 @@ alter table public.profiles add column if not exists tier_updated_at timestamptz
 -- insert into public.admins (user_id)
 -- select id from auth.users where email = 'you@example.com'
 -- on conflict (user_id) do nothing;
+
+
+-- ============================================================
+--  ส่วนที่ 6) AI สแกนประจำวัน
+--  Edge Function: supabase/functions/daily-scan/index.ts (deploy แบบ verify_jwt = false
+--  เพราะฟังก์ชันตรวจสิทธิ์เอง: x-cron-secret จาก Vault หรือ JWT ของแอดมิน)
+-- ============================================================
+create table if not exists public.daily_scans (
+  id bigserial primary key, scan_date date not null,
+  market text not null check (market in ('thailand','america','crypto')),
+  headline text, summary text,
+  risks jsonb not null default '[]'::jsonb, picks jsonb not null default '[]'::jsonb,
+  groups jsonb not null default '{}'::jsonb, breadth jsonb not null default '{}'::jsonb,
+  model text, scanned int, created_at timestamptz not null default now(),
+  unique (scan_date, market)
+);
+alter table public.daily_scans enable row level security;
+create index if not exists daily_scans_market_date_idx on public.daily_scans (market, scan_date desc);
+
+create or replace function public.has_paid()
+returns boolean language sql stable security definer set search_path = ''
+as $$ select exists (select 1 from public.profiles p where p.id = (select auth.uid())
+        and p.tier in ('pro','lifetime') and (p.tier_expires_at is null or p.tier_expires_at > now())); $$;
+revoke execute on function public.has_paid() from public, anon;
+grant  execute on function public.has_paid() to authenticated;
+
+drop policy if exists "daily thai public" on public.daily_scans;
+create policy "daily thai public" on public.daily_scans
+  for select to anon, authenticated using (market = 'thailand');
+drop policy if exists "daily paid markets" on public.daily_scans;
+create policy "daily paid markets" on public.daily_scans
+  for select to authenticated using (public.has_paid() or public.is_admin());
+
+do $$ begin
+  if not exists (select 1 from vault.secrets where name = 'daily_scan_cron_secret') then
+    perform vault.create_secret(encode(gen_random_bytes(32), 'hex'), 'daily_scan_cron_secret');
+  end if; end $$;
+
+create or replace function public.check_cron_secret(s text)
+returns boolean language sql stable security definer set search_path = ''
+as $$ select coalesce((select decrypted_secret = s from vault.decrypted_secrets
+        where name = 'daily_scan_cron_secret' limit 1), false); $$;
+revoke execute on function public.check_cron_secret(text) from public, anon, authenticated;
+grant  execute on function public.check_cron_secret(text) to service_role;
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
+-- ยิงแยกทีละตลาด (แต่ละคำขอมีเวลา 150 วิ ถ้ารวม 3 ตลาดพร้อม Gemini จะเกินเวลา) · เสาร์-อาทิตย์สแกนเฉพาะคริปโต
+create or replace function public.trigger_daily_scan(markets text[] default null)
+returns bigint language plpgsql security definer set search_path = ''
+as $$ declare rid bigint; m text; dow int; begin
+  if markets is null then
+    dow := extract(isodow from (now() at time zone 'Asia/Bangkok'));
+    markets := case when dow in (6,7) then array['crypto'] else array['thailand','america','crypto'] end;
+  end if;
+  foreach m in array markets loop
+    select net.http_post(
+      url := 'https://imfoelpjryfhiqnxzvcx.supabase.co/functions/v1/daily-scan',   -- ← เปลี่ยนถ้าย้ายโปรเจกต์
+      headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',
+        (select decrypted_secret from vault.decrypted_secrets where name='daily_scan_cron_secret')),
+      body := jsonb_build_object('markets', array[m]),
+      timeout_milliseconds := 150000) into rid;
+  end loop;
+  return rid; end $$;
+revoke execute on function public.trigger_daily_scan(text[]) from public, anon, authenticated;
+
+-- ทุกวัน 01:30 UTC = 08:30 น. เวลาไทย
+select cron.unschedule(jobid) from cron.job where jobname = 'daily-ai-scan';
+select cron.schedule('daily-ai-scan', '30 1 * * *', $$ select public.trigger_daily_scan(); $$);
+
+
+-- ============================================================
+--  ส่วนที่ 7) สัญญาณเข้าซื้อตามระบบ (Edge Function: trade-signals)
+-- ============================================================
+create table if not exists public.trade_signals (
+  id bigserial primary key, signal_date date not null,
+  market text not null check (market in ('thailand','america','crypto')),
+  symbol text not null, name text, descr text, setup text not null,
+  ref_price numeric not null, entry_low numeric not null, entry_high numeric not null,
+  stop numeric not null, target1 numeric not null, target2 numeric, valid_until date not null,
+  score int, reason text,
+  status text not null default 'open' check (status in ('open','entered','target','stopped','expired','timeout')),
+  entry_price numeric, entered_on date, exit_price numeric, closed_on date, result_pct numeric, last_price numeric,
+  updated_at timestamptz not null default now(), unique (signal_date, market, symbol)
+);
+alter table public.trade_signals enable row level security;
+drop policy if exists "signals thai public" on public.trade_signals;
+create policy "signals thai public" on public.trade_signals for select to anon, authenticated using (market = 'thailand');
+drop policy if exists "signals paid markets" on public.trade_signals;
+create policy "signals paid markets" on public.trade_signals for select to authenticated using (public.has_paid() or public.is_admin());
+
+create or replace function public.trigger_trade_signals()
+returns bigint language plpgsql security definer set search_path = ''
+as $$ declare rid bigint; begin
+  select net.http_post(
+    url := 'https://imfoelpjryfhiqnxzvcx.supabase.co/functions/v1/trade-signals',
+    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',
+      (select decrypted_secret from vault.decrypted_secrets where name='daily_scan_cron_secret')),
+    body := '{}'::jsonb, timeout_milliseconds := 120000) into rid;
+  return rid; end $$;
+revoke execute on function public.trigger_trade_signals() from public, anon, authenticated;
+select cron.unschedule(jobid) from cron.job where jobname = 'daily-trade-signals';
+select cron.schedule('daily-trade-signals', '40 1 * * *', $$ select public.trigger_trade_signals(); $$);
+
+
+-- ============================================================
+-- 8) บทวิเคราะห์ AI รายตัว (Edge Function ai-analyze)
+--    แคชวันละ 1 ครั้งต่อหุ้น · เขียน/อ่านผ่าน service role เท่านั้น (ไม่มี policy ให้ฝั่งเบราว์เซอร์)
+-- ============================================================
+create table if not exists public.ai_notes (
+  id          bigserial primary key,
+  symbol      text not null,
+  market      text not null,
+  note_date   date not null,
+  analysis    jsonb not null,
+  model       text,
+  created_by  uuid references auth.users(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  unique (symbol, note_date)
+);
+create index if not exists ai_notes_user_day_idx on public.ai_notes (created_by, note_date);
+alter table public.ai_notes enable row level security;
