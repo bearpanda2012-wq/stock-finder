@@ -97,7 +97,7 @@ body.offline .offpill{display:inline-block}
 .iosgrid svg{vertical-align:-3px}
 @media (max-width:640px){
   .wrap{padding-left:max(10px, env(safe-area-inset-left));padding-right:max(10px, env(safe-area-inset-right))}
-  .hd{gap:8px}
+  .hd.hd{gap:8px}
   .hd .sub{display:none}
   .iconbtn{padding:6px 10px}
 }
@@ -453,6 +453,19 @@ body{letter-spacing:-.005em}
   background:color-mix(in srgb, var(--card) 86%, transparent);backdrop-filter:saturate(1.4) blur(14px);
   -webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .usermenu .menu{z-index:60}
+/* มือถือ: ปุ่มโปรไฟล์เหลือแค่วงกลมตัวอักษร อยู่แถวเดียวกับปุ่มอื่น · เมนูยึดขอบจอขวา ไม่ล้นจอ */
+@media (max-width:640px){
+  .hd.hd{gap:8px}
+  #userBtn{width:34px;padding:0;justify-content:center}
+  #userBtn #userLabel{display:none}
+  #userBtn .avatar{margin-right:0;width:24px;height:24px;font-size:11px}
+  .usermenu .menu{position:fixed;left:auto;right:max(10px, env(safe-area-inset-right));
+    top:var(--menu-top,64px);width:min(300px, calc(100vw - 20px));min-width:0;
+    max-height:calc(100dvh - var(--menu-top,64px) - 16px);overflow-y:auto;z-index:200}
+  .menu button{padding:11px 12px;font-size:14px}
+  .menu .mhead b{font-size:13px}
+}
+@media (max-width:380px){ .hd .brand .bt h1{font-size:14.5px} .hd .brand{gap:8px;margin-right:0} }
 html,body{overflow-x:clip}   /* กันแถบเลื่อนแนวนอนจากพื้นหลังหัวเว็บที่ยืดเต็มจอ (clip ไม่ทำให้ sticky เสีย) */
 .hd{padding:11px 0;gap:14px}
 .hd h1::before{display:none}
@@ -612,7 +625,8 @@ tbody tr:last-child td{border-bottom:0}
 .ainote{border-color:color-mix(in srgb, var(--acc) 22%, transparent)}
 .err{border-radius:10px}
 [data-theme="dark"] .err{background:#2a1416;border-color:#4a2125;color:#ffb4b4}
-.dw{box-shadow:-24px 0 48px -12px rgba(15,23,42,.25)}
+.dw{box-shadow:none;visibility:hidden;transition:transform .22s cubic-bezier(.4,0,.2,1),visibility 0s .22s}
+.dw.on{box-shadow:-24px 0 48px -12px rgba(15,23,42,.25);visibility:visible;transition:transform .22s cubic-bezier(.4,0,.2,1)}  /* แผงที่ปิดอยู่ไม่ทิ้งเงาเบลอที่ขอบจอขวา */
 .dwh h2{font-size:18px;font-weight:700}
 .modal .mbox{border-radius:16px}
 .foot{border-top:1px solid var(--line);padding-top:12px;margin-top:18px}
@@ -3570,7 +3584,13 @@ $("#rsPw1").addEventListener("input", pwMeter);
 ["rsPw1","rsPw2"].forEach(id=>{
   $("#"+id).addEventListener("keydown", e=>{ if(e.key==="Enter") doReset() });
 });
-$("#userBtn").onclick = e=>{ e.stopPropagation(); $("#userMenu").classList.toggle("on") };
+$("#userBtn").onclick = e=>{
+  e.stopPropagation();
+  const m=$("#userMenu"), r=$("#userBtn").getBoundingClientRect();
+  m.style.setProperty("--menu-top", Math.round(r.bottom + 6) + "px");   // ใช้ตอนจอแคบ (menu เป็น fixed)
+  m.classList.toggle("on");
+};
+window.addEventListener("scroll", ()=>{ const m=$("#userMenu"); if(m && matchMedia("(max-width:640px)").matches) m.classList.remove("on") }, {passive:true});
 document.addEventListener("click", ()=>{ const m=$("#userMenu"); if(m) m.classList.remove("on") });
 $("#userMenu").onclick = async e=>{
   const b=e.target.closest("button[data-a]"); if(!b) return;
