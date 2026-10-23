@@ -8,7 +8,7 @@
  *
  * ออกเวอร์ชันใหม่: เปลี่ยน VERSION ด้านล่าง → ผู้ใช้จะเห็นแถบ "มีเวอร์ชันใหม่"
  */
-const VERSION = "sf-v5";
+const VERSION = "sf-v6";
 const SHELL = `${VERSION}-shell`;
 const LIBS  = `${VERSION}-libs`;
 

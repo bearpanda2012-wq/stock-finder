@@ -503,6 +503,16 @@ html,body{overflow-x:clip}   /* กันแถบเลื่อนแนวน
   background:linear-gradient(135deg,#7c9cff,#22d3a6)}
 .aid-date{font-size:12px;color:#9fb0d3;display:inline-flex;align-items:center;gap:8px}
 .aid-m{font-size:10px;padding:2px 7px;border-radius:20px;border:1px solid rgba(255,255,255,.18);color:#cfe0ff}
+/* ไอคอนหุ่นยนต์ AI (แทนชื่อโมเดล) */
+.bot{display:inline-block;vertical-align:middle;flex-shrink:0}
+.bot .bot-eye{transform-box:fill-box;transform-origin:center;animation:botBlink 4.5s infinite}
+.bot .bot-ant{transform-box:fill-box;transform-origin:center;animation:botGlow 2.2s ease-in-out infinite}
+@keyframes botBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.15)}}
+@keyframes botGlow{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.bot .bot-eye,.bot .bot-ant{animation:none}}
+.aid-m.aid-bot{padding:2px 5px 2px 4px;display:inline-flex;align-items:center;line-height:0;
+  background:rgba(255,255,255,.06)}
+.ain-h .bot{margin-left:2px}
 .aid-days{display:flex;gap:2px;background:rgba(255,255,255,.06);padding:2px;border-radius:8px}
 .aid-days button{border:0;background:transparent;color:#9fb0d3;font-size:11px;padding:4px 9px;border-radius:6px}
 .aid-days button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
@@ -1147,6 +1157,24 @@ function cap(v){ v=nz(v); if(v===null)return "–"; const a=Math.abs(v);
   if(a>=1e6)  return (v/1e6).toFixed(1)+" ล้าน";
   return num(v,0) }
 function cls(v){ v=nz(v); return v===null?"mut":(v>0?"up":v<0?"dn":"mut") }
+/* หุ่นยนต์น่ารัก — ใช้แทนชื่อโมเดล AI ทุกจุด (ตาสีเข้มเจาะจาก --bot-face ได้) */
+let BOT_N = 0;
+function botIcon(size=18, title="สรุปโดย AI"){
+  const g = "botG" + (++BOT_N);   // id ไม่ซ้ำ — ถ้าซ้ำแล้วตัวแรกถูกซ่อน gradient จะหายใน Chrome
+  return `<svg class="bot" width="${size}" height="${size}" viewBox="0 0 24 24" role="img" aria-label="${title}"><title>${title}</title>
+    <defs><linearGradient id="${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fb0ff"/><stop offset="1" stop-color="#2fe0b4"/></linearGradient></defs>
+    <line x1="12" y1="2.6" x2="12" y2="5.6" stroke="url(#${g})" stroke-width="1.6" stroke-linecap="round"/>
+    <circle class="bot-ant" cx="12" cy="2.3" r="1.6" fill="#ffd166"/>
+    <rect x="1.4" y="10.4" width="2.4" height="5" rx="1.2" fill="url(#${g})"/>
+    <rect x="20.2" y="10.4" width="2.4" height="5" rx="1.2" fill="url(#${g})"/>
+    <rect x="3.4" y="5.4" width="17.2" height="15" rx="6" fill="url(#${g})"/>
+    <rect x="5.8" y="8" width="12.4" height="9.6" rx="4.2" fill="#14204a"/>
+    <ellipse class="bot-eye" cx="9.4" cy="12" rx="1.45" ry="1.75" fill="#7ff5d4"/>
+    <ellipse class="bot-eye" cx="14.6" cy="12" rx="1.45" ry="1.75" fill="#7ff5d4"/>
+    <path d="M10.2 15.1q1.8 1.3 3.6 0" fill="none" stroke="#7ff5d4" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="7.4" cy="15" r=".9" fill="#ff8fb1" opacity=".75"/><circle cx="16.6" cy="15" r=".9" fill="#ff8fb1" opacity=".75"/>
+  </svg>`;
+}
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])) }
 function recLabel(r){ r=nz(r); if(r===null) return {t:"–",c:"b-n"};
   if(r>=0.5) return {t:"ซื้อมาก",c:"b-sb"}; if(r>=0.1) return {t:"ซื้อ",c:"b-b"};
@@ -3685,7 +3713,8 @@ function renderDaily(){
   const d = rows[AID.i], b = d.breadth || {};
   const ai = d.model && d.model !== "rules";
   $("#aidDate").innerHTML = `${escapeHtml(MKT_TH[m])} · ${escapeHtml(fmtD(d.scan_date))}
-    <span class="aid-m" title="${ai?"เขียนสรุปโดย "+escapeHtml(d.model):"สรุปจากกฎอัตโนมัติ (ยังไม่ได้ตั้งค่า Gemini)"}">${ai?"Gemini":"อัตโนมัติ"}</span>`;
+    ${ai ? `<span class="aid-m aid-bot" title="สรุปโดย AI">${botIcon(20)}</span>`
+         : `<span class="aid-m" title="สรุปจากกฎอัตโนมัติ (AI ไม่ได้ตอบ)">อัตโนมัติ</span>`}`;
   const tot = (b.up||0)+(b.down||0) || 1, upPct = Math.round((b.up||0)/tot*100);
   const kpi = `
     <div class="aid-kpis">
@@ -3806,7 +3835,7 @@ async function runDailyNow(){
     if(error) throw error;
     const r = (data && data.results && data.results[0]) || {};
     if(r.error) throw new Error(r.error);
-    toast(`สแกน${MKT_TH[S.market]}เสร็จ · ${r.scanned} ตัว · ${r.model==="rules"?"สรุปอัตโนมัติ":"Gemini"}`, null, null, 4000);
+    toast(`สแกน${MKT_TH[S.market]}เสร็จ · ${r.scanned} ตัว · ${r.model==="rules"?"สรุปอัตโนมัติ":"สรุปโดย AI 🤖"}`, null, null, 4000);
     AID.market = null; await loadDaily();
   }catch(e){ toast("สแกนไม่สำเร็จ: " + (e.message||e), null, null, 6000) }
   finally{ AID.busy=false; b.disabled=false; b.textContent="⟳ สแกนตอนนี้" }
@@ -3840,7 +3869,7 @@ async function loadAiNote(r){
     const a=data.analysis||{};
     const li = xs => (xs||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join("");
     box.innerHTML = `
-      <div class="ain-h"><span class="aid-badge">AI</span> บทวิเคราะห์ ${escapeHtml(data.created ? new Date(data.created).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : fmtD(data.date))}<span class="mut"> · ${escapeHtml(data.model||"")}</span></div>
+      <div class="ain-h"><span class="aid-badge">AI</span> บทวิเคราะห์ ${escapeHtml(data.created ? new Date(data.created).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : fmtD(data.date))}${botIcon(17,"วิเคราะห์โดย AI")}</div>
       <p>${escapeHtml(a.summary||"")}</p>
       ${(a.strengths||[]).length?`<div class="ain-g"><b class="up">จุดแข็ง</b><ul>${li(a.strengths)}</ul></div>`:""}
       ${(a.risks||[]).length?`<div class="ain-g"><b class="dn">ความเสี่ยง</b><ul>${li(a.risks)}</ul></div>`:""}
